@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Track Delivery | Zing² amaZing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: #fff8f5;
+      color: #333;
+    }
+
+    header {
+      background: #ff1e1e;
+      padding: 15px;
+      color: white;
+      text-align: center;
+      font-size: 1.8rem;
+    }
+
+    .info {
+      text-align: center;
+      padding: 10px;
+    }
+
+    .eta, .status {
+      font-size: 1.2rem;
+      margin: 8px 0;
+    }
+
+    .stage {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .stage span {
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: #eee;
+      font-size: 14px;
+    }
+
+    .active {
+      background: #d63031;
+      color: white;
+      font-weight: bold;
+    }
+
+    #map {
+      height: 60vh;
+      width: 90%;
+      margin: 20px auto 10px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .back-btn {
+      display: block;
+      margin: 0 auto 25px;
+      background: #ff1e1e;
+      color: white;
+      padding: 12px 24px;
+      text-align: center;
+      border: none;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: bold;
+      width: fit-content;
+    }
+
+    .back-btn:hover {
+      background: #e01a1a;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        font-size: 1.4rem;
+      }
+
+      .eta, .status {
+        font-size: 1rem;
+      }
+
+      .stage span {
+        font-size: 12px;
+        padding: 5px 10px;
+      }
+
+      #map {
+        height: 55vh;
+        width: 95%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>Zing² amaZing - Live Delivery Tracker</header>
+
+<div class="info">
+  <div class="eta">Estimated Arrival: <span id="countdown">15:00</span></div>
+  <div class="status" id="status">Order Confirmed – Being prepared 🍳</div>
+  <div class="stage">
+    <span id="stage1" class="active">Confirmed</span>
+    <span id="stage2">Cooking</span>
+    <span id="stage3">Out for Delivery</span>
+    <span id="stage4">Arriving</span>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<!-- 🔙 Back Button -->
+<a href="menu.html" class="back-btn">🔙 Back to Menu</a>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  let map = L.map('map').setView([20.5937, 78.9629], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  let partnerMarker = L.marker([0, 0], { title: "Delivery Partner" }).addTo(map);
+  let customerMarker = L.marker([0, 0], { title: "You" }).addTo(map);
+  let routeLine;
+
+  const statusEl = document.getElementById('status');
+  const cdEl = document.getElementById('countdown');
+  let countdown = 15 * 60;
+  const stages = ['stage1', 'stage2', 'stage3', 'stage4'];
+
+  function setStage(activeIndex) {
+    stages.forEach((id, i) => {
+      document.getElementById(id).classList.toggle('active', i === activeIndex);
+    });
+  }
+
+  function updateCountdown() {
+    if (countdown > 0) {
+      const m = String(Math.floor(countdown / 60)).padStart(2, '0');
+      const s = String(countdown % 60).padStart(2, '0');
+      cdEl.textContent = `${m}:${s}`;
+      countdown--;
+    } else {
+      cdEl.textContent = "Arriving now!";
+      clearInterval(cdTimer);
+    }
+  }
+
+  const cdTimer = setInterval(updateCountdown, 1000);
+
+  function updateStatus(distance) {
+    if (distance > 3) {
+      statusEl.textContent = "Order Confirmed – Being prepared 🍳";
+      setStage(0);
+    } else if (distance > 1.5) {
+      statusEl.textContent = "Cooking done – Out for delivery 🛵";
+      setStage(1);
+    } else if (distance > 0.3) {
+      statusEl.textContent = "Delivery on the way 🛣️";
+      setStage(2);
+    } else {
+      statusEl.textContent = "Delivery arriving at your door! 🚪";
+      setStage(3);
+    }
+  }
+
+  function distanceKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(lat1 * Math.PI / 180) *
+              Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function drawRoute(lat1, lon1, lat2, lon2) {
+    if (routeLine) map.removeLayer(routeLine);
+    routeLine = L.polyline([[lat1, lon1], [lat2, lon2]], { color: 'red' }).addTo(map);
+    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+  }
+
+  let customerLat, customerLon;
+
+  // Get customer location
+  navigator.geolocation.watchPosition(pos => {
+    customerLat = pos.coords.latitude;
+    customerLon = pos.coords.longitude;
+    customerMarker.setLatLng([customerLat, customerLon]).bindPopup("You").openPopup();
+  });
+
+  // Simulated live delivery partner location
+  async function updatePartner() {
+    try {
+      const res = await fetch('/get_locations');
+      const data = await res.json();
+      const { lat, lon } = data.partner;
+      partnerMarker.setLatLng([lat, lon]).bindPopup("Delivery Partner").openPopup();
+
+      if (customerLat != null) {
+        const d = distanceKm(lat, lon, customerLat, customerLon);
+        updateStatus(d);
+        drawRoute(lat, lon, customerLat, customerLon);
+      } else {
+        map.setView([lat, lon], 13);
+      }
+    } catch (e) {
+      console.error("Failed to fetch delivery partner location:", e);
+    }
+  }
+
+  updatePartner();
+  setInterval(updatePartner, 10000);
+</script>
+
+</body>
+</html>

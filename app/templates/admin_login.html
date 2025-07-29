@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --primary-color: #B22222;   /* Firebrick red */
+            --accent-color: #27AE60;    /* Green login button */
+            --background-color: #fff0f0;
+            --text-color: #333;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to right, #f81d1d, #ff1515);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        .login-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            padding: 0.6rem;
+            margin-bottom: 1.2rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: #f9f9f9;
+        }
+
+        button {
+            padding: 0.75rem;
+            background-color: var(--accent-color);
+            border: none;
+            color: white;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #1e8449;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+
+        .forgot-password a {
+            color: #2980b9;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .login-container {
+                padding: 1.2rem;
+                width: 95%;
+            }
+
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>Admin Login</h2>
+
+
+    <form method="post" action="/admin_login">
+        <label for="email">Email</label>
+        <input type="email" name="email" id="email" required placeholder="owner@example.com">
+
+        <label for="password">Password</label>
+        <input type="password" name="password" id="password" required placeholder="Your password">
+
+        <button type="submit">Login</button>
+    </form>
+
+    <div class="forgot-password">
+        <a href="forgot_password.html">Forgot Password?</a> <!-- Placeholder for now -->
+        <p style="margin-top:10px;">
+  <a href="/forgot_password" style="color: white;">Forgot Password?</a>
+</p>
+
+    </div>
+</div>
+
+</body>
+</html>

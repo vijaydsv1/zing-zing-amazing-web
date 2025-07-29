@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🛒 Zing² amaZing | Cart</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@500&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: #fff8f5;
+      color: #333;
+    }
+
+    header {
+      background-color: #ff1e1e;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-family: 'Pacifico', cursive;
+      font-size: 2rem;
+    }
+
+    .cart-container {
+      max-width: 1000px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #d63031;
+      margin-bottom: 30px;
+      font-size: 1.8rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    th, td {
+      padding: 15px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+      font-size: 15px;
+    }
+
+    th {
+      background-color: #ffeaea;
+      color: #d63031;
+    }
+
+    .quantity {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .quantity button {
+      padding: 6px 12px;
+      border: none;
+      background-color: #ff4d4d;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .quantity span {
+      font-weight: bold;
+    }
+
+    .remove-btn {
+      background-color: #777;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .total {
+      text-align: right;
+      font-size: 18px;
+      margin-top: 20px;
+    }
+
+    .checkout-btn {
+      background-color: #d63031;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      float: right;
+      margin-top: 10px;
+      transition: 0.3s ease;
+    }
+
+    .checkout-btn:hover {
+      background-color: #ff3b3b;
+    }
+
+    @media (max-width: 768px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+        width: 100%;
+      }
+
+      tr {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      }
+
+      th {
+        display: none;
+      }
+
+      td {
+        text-align: right;
+        position: relative;
+        padding-left: 50%;
+        border: none;
+        border-bottom: 1px solid #eee;
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+
+      td::before {
+        position: absolute;
+        left: 15px;
+        top: 12px;
+        width: 45%;
+        white-space: nowrap;
+        font-weight: bold;
+        color: #d63031;
+        text-align: left;
+      }
+
+      td:nth-of-type(1)::before { content: "Item"; }
+      td:nth-of-type(2)::before { content: "Price"; }
+      td:nth-of-type(3)::before { content: "Qty"; }
+      td:nth-of-type(4)::before { content: "Total"; }
+      td:nth-of-type(5)::before { content: "Remove"; }
+
+      .total, .checkout-btn {
+        float: none;
+        text-align: center;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      .checkout-btn {
+        padding: 12px 20px;
+      }
+
+      .quantity button {
+        padding: 6px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Zing² ama<span style="color:#4b0c0c;">Z</span>ing</div>
+</header>
+
+<div class="cart-container">
+  <h2>Your Cart Items</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Price</th>
+        <th>Qty</th>
+        <th>Total</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="cart-body">
+      <!-- Cart items will be injected here -->
+    </tbody>
+  </table>
+
+  <div class="total" id="grand-total">Grand Total: ₹0</div>
+  <button class="checkout-btn" onclick="proceedToCheckout()">Proceed to Checkout</button>
+</div>
+
+<script>
+  let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+  function loadCart() {
+    const tbody = document.getElementById('cart-body');
+    tbody.innerHTML = "";
+    let grandTotal = 0;
+
+    cart.forEach((item, index) => {
+      const itemTotal = item.price * item.qty;
+      grandTotal += itemTotal;
+
+      const row = document.createElement('tr');
+      row.setAttribute('data-index', index);
+
+      row.innerHTML = `
+        <td>${item.name}</td>
+        <td>₹${item.price}</td>
+        <td class="quantity">
+          <button onclick="changeQty(${index}, -1)">-</button>
+          <span>${item.qty}</span>
+          <button onclick="changeQty(${index}, 1)">+</button>
+        </td>
+        <td class="item-total">₹${itemTotal}</td>
+        <td><button class="remove-btn" onclick="removeItem(${index})">🗑️</button></td>
+      `;
+
+      tbody.appendChild(row);
+    });
+
+    document.getElementById('grand-total').innerText = `Grand Total: ₹${grandTotal}`;
+  }
+
+  function changeQty(index, delta) {
+    cart[index].qty += delta;
+    if (cart[index].qty < 1) cart[index].qty = 1;
+    localStorage.setItem('cart', JSON.stringify(cart));
+    loadCart();
+  }
+
+  function removeItem(index) {
+    cart.splice(index, 1);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    loadCart();
+  }
+
+  function proceedToCheckout() {
+  if (cart.length === 0) {
+    alert("🛒 Your cart is empty. Please add items before proceeding.");
+    return;
+  }
+  window.location.href = "order_details.html";
+}
+
+  
+
+  window.onload = loadCart;
+</script>
+
+</body>
+</html>

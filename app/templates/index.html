@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zing Zing Amazing – Welcome</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Bebas+Neue&family=Poppins:wght@500&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #ff1e1e;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .brand-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 4rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .highlight {
+      color: #fff;
+      font-family: 'Pacifico', cursive;
+      font-size: 4.5rem;
+    }
+
+    .amazing {
+      font-size: 2.8rem;
+      font-family: 'Poppins', sans-serif;
+      text-transform: lowercase;
+      display: inline-block;
+    }
+
+    .amazing .z {
+      display: inline-block;
+      color: #4b0c0c;
+      font-family: 'Pacifico', cursive;
+      font-size: 3.2rem;
+      animation: zoomSlide 1.2s ease-out forwards;
+      transform: scale(0) translateY(-50px);
+      opacity: 0;
+    }
+
+    @keyframes zoomSlide {
+      0% { transform: scale(0) translateY(-50px); opacity: 0; }
+      60% { transform: scale(1.3) translateY(10px); opacity: 1; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .tagline {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      background: linear-gradient(to right, #ffffff, #ffe259, #ff6f00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.5px;
+    }
+
+    .button-row {
+      margin-top: 30px;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: 2px solid #d63031;
+      border-radius: 6px;
+      font-weight: 600;
+      background-color: #ffffff;
+      color: #d63031;
+      font-size: 16px;
+      text-decoration: none;
+      transition: 0.3s ease;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background-color: #ffe6e6;
+      color: #b71c1c;
+    }
+
+    footer {
+      position: absolute;
+      bottom: 15px;
+      font-size: 13px;
+      color: #f9f9f9;
+    }
+
+    @media (max-width: 480px) {
+      .brand-title { font-size: 3rem; }
+      .highlight { font-size: 3.5rem; }
+      .amazing { font-size: 2.2rem; }
+      .amazing .z { font-size: 2.7rem; }
+      .tagline { font-size: 0.85rem; }
+      .btn { padding: 10px 20px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div>
+    <h1 class="brand-title">
+      <span class="highlight">Zing²</span>
+      <span class="amazing">ama<span class="z">Z</span>ing</span>
+    </h1>
+
+    <p class="tagline">
+      Hot, Crispy & Delivered Fresh – From Our Kitchen to Your Cravings!
+    </p>
+
+    <div class="button-row">
+      <a href="menu.html" class="btn">🍽️ Get Started</a>
+    </div>
+
+    </div>
+  </div>
+
+  <footer>© 2025 Zing Zing Amazing</footer>
+
+</body>
+</html>

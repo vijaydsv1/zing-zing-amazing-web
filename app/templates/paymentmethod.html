@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Method | Zing² amaZing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap" rel="stylesheet">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #fff8f5;
+    }
+    header {
+      background-color: #ff1e1e;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 500px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #d63031;
+      margin-bottom: 25px;
+    }
+    .payment-option {
+      display: flex;
+      align-items: center;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: border-color 0.3s ease;
+    }
+    .payment-option.selected {
+      border-color: #d63031;
+      background-color: #fff1f1;
+    }
+    .payment-option img {
+      width: 30px;
+      height: 30px;
+      margin-right: 15px;
+    }
+    .payment-option span {
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .pay-btn {
+      width: 100%;
+      padding: 14px;
+      background-color: #d63031;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 25px;
+    }
+    .pay-btn:hover {
+      background-color: #ff3b3b;
+    }
+    @media (max-width: 500px) {
+      .container {
+        margin: 15px;
+        padding: 18px;
+      }
+      .payment-option span {
+        font-size: 14px;
+      }
+      .pay-btn {
+        font-size: 15px;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>Choose Payment Method</header>
+
+<div class="container">
+  <h2>Select a Payment Option</h2>
+
+  <!-- Razorpay -->
+  <div class="payment-option" onclick="selectOption('razorpay', event)">
+    <img src="https://cdn.iconscout.com/icon/free/png-256/razorpay-283024.png" alt="Razorpay">
+    <span>Pay via UPI / Card / Wallet / Pay Later</span>
+  </div>
+
+  <!-- Cash on Delivery -->
+  <div class="payment-option" onclick="selectOption('cod', event)">
+    <img src="https://cdn-icons-png.flaticon.com/512/891/891462.png" alt="Cash">
+    <span>Cash on Delivery</span>
+  </div>
+
+  <button class="pay-btn" onclick="initiatePayment()">Proceed</button>
+</div>
+
+<!-- Add inside your <script> tag after handler in Razorpay -->
+<script>
+  let amount = parseInt('{{ grand_total }}'); // Flask will replace this with actual amount
+  let selectedMethod = "";
+
+  function selectOption(method, event) {
+    selectedMethod = method;
+    document.querySelectorAll('.payment-option').forEach(el => {
+      el.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+  }
+
+  function sendWhatsAppNotification() {
+    fetch('/notify_whatsapp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        customer_name: "Zing User",  // Replace with dynamic data if available
+        phone: "9999999999",         // Replace with user's actual phone
+        amount: amount,
+        method: selectedMethod
+      })
+    }).then(res => res.json())
+      .then(data => console.log("WhatsApp Notification Sent"))
+      .catch(err => console.error("WhatsApp notification failed", err));
+  }
+
+  function initiatePayment() {
+    if (!selectedMethod) {
+      alert("Please select a payment method.");
+      return;
+    }
+
+    if (selectedMethod === 'cod') {
+      sendWhatsAppNotification();  // send COD notification
+      window.location.href = "order_success.html";
+      return;
+    }
+
+    if (selectedMethod === 'razorpay') {
+      fetch('/create_order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amount: amount })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.order_id) throw new Error("Order creation failed");
+
+        let options = {
+          key: data.key,
+          amount: data.amount,
+          currency: "INR",
+          name: "Zing² amaZing",
+          description: "Order Payment",
+          order_id: data.order_id,
+          handler: function (response) {
+            sendWhatsAppNotification();  // send success notification
+            window.location.href = "success.html";
+          },
+          modal: {
+            ondismiss: function () {
+              window.location.href = "failure.html";
+            }
+          },
+          prefill: {
+            name: "Zing User",
+            email: "user@example.com",
+            contact: "9999999999"
+          },
+          theme: {
+            color: "#d63031"
+          },
+          method: {
+            upi: true,
+            card: true,
+            netbanking: true,
+            wallet: true,
+            paylater: true
+          },
+          config: {
+            display: {
+              blocks: {
+                upi: {
+                  name: "Pay via UPI",
+                  instruments: [
+                    {
+                      method: "upi"
+                    }
+                  ]
+                }
+              },
+              sequence: ["block.upi", "block.cards", "block.netbanking", "block.wallet"],
+              preferences: {
+                show_default_blocks: true
+              }
+            }
+          }
+        };
+
+        let rzp = new Razorpay(options);
+        rzp.open();
+      })
+      .catch(error => {
+        console.error("Payment failed", error);
+        alert("Something went wrong. Please try again later.");
+      });
+    }
+  }
+</script>
+
+</body>
+</html>

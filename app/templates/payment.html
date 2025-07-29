@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment | Zing² amaZing</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #fff8f5;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+
+    header {
+      background-color: #ff1e1e;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: 'Pacifico', cursive;
+      font-size: 2rem;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #d63031;
+      margin-bottom: 25px;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .item-name {
+      font-weight: 500;
+    }
+
+    .summary {
+      margin-top: 30px;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+    }
+
+    .summary div {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background-color: #d63031;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 25px;
+    }
+
+    .btn:hover {
+      background-color: #ff3b3b;
+    }
+
+    .empty-cart {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #777;
+      margin: 50px 0;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        margin: 20px;
+        padding: 20px;
+      }
+
+      .btn {
+        font-size: 15px;
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">Zing² ama<span style="color:#4b0c0c;">Z</span>ing</div>
+</header>
+
+<!-- Order Summary -->
+<div class="container">
+  <h2>Order Summary</h2>
+  <div id="orderItems"></div>
+
+  <div class="summary">
+    <div><span>Subtotal</span><span id="subtotal">₹0</span></div>
+    <div><span>Delivery</span><span id="delivery">₹40</span></div>
+    <div><span>Total</span><span id="total">₹0</span></div>
+  </div>
+
+  <button class="btn" onclick="Proceed()">Proceed</button>
+</div>
+
+<script>
+  const cart = JSON.parse(localStorage.getItem('cart')) || [];
+  const orderItemsDiv = document.getElementById('orderItems');
+  const subtotalSpan = document.getElementById('subtotal');
+  const deliverySpan = document.getElementById('delivery');
+  const totalSpan = document.getElementById('total');
+
+  let subtotal = 0;
+  let delivery = 40; // Fixed delivery cost
+
+  if (cart.length === 0) {
+    orderItemsDiv.innerHTML = "<div class='empty-cart'>Your cart is empty.</div>";
+    delivery = 0;
+  } else {
+    cart.forEach(item => {
+      const itemTotal = item.price * item.qty;
+      subtotal += itemTotal;
+
+      const div = document.createElement('div');
+      div.className = "item";
+      div.innerHTML = `
+        <div class="item-name">${item.name} × ${item.qty}</div>
+        <div>₹${itemTotal}</div>
+      `;
+      orderItemsDiv.appendChild(div);
+    });
+  }
+
+  const total = subtotal + delivery;
+
+  subtotalSpan.innerText = `₹${subtotal}`;
+  deliverySpan.innerText = `₹${delivery}`;
+  totalSpan.innerText = `₹${total}`;
+
+  function Proceed() {
+    window.location.href = "paymentmethod.html"; // optional thank you page
+  }
+
+
+  // Store cart in local storage
+  localStorage.setItem('cart', JSON.stringify(cart));
+  localStorage.setItem('subtotal', subtotal);
+  localStorage.setItem('delivery', delivery);
+
+</script>
+
+</body>
+</html>

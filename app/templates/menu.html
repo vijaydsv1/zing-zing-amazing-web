@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Zing² amaZing | Menu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Bebas+Neue&family=Poppins:wght@500&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #fff8f5;
+      color: #333;
+    }
+
+    header {
+      background-color: #ff1e1e;
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .logo {
+      font-family: 'Pacifico', cursive;
+      font-size: 2rem;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .nav-buttons a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .nav-buttons a:hover {
+      text-decoration: underline;
+    }
+
+    .menu-container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .menu-title {
+      text-align: center;
+      font-size: 2rem;
+      color: #d63031;
+      margin-bottom: 30px;
+    }
+
+    .menu {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+    }
+
+    .menu-item {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      transition: transform 0.3s;
+      text-align: center;
+    }
+
+    .menu-item:hover {
+      transform: translateY(-5px);
+    }
+
+    .menu-item img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .menu-item h3 {
+      margin: 12px 0 6px;
+      color: #e74c3c;
+      font-size: 1.4rem;
+    }
+
+    .menu-item p {
+      font-size: 15px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .menu-item button {
+      padding: 10px 18px;
+      background-color: #d63031;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+
+    .menu-item button:hover {
+      background-color: #ff3f3f;
+    }
+
+    #chatbot-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    }
+
+    
+    /* Chatbot Floating Button */
+#chatbot-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #ec0707;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    z-index: 999;
+}
+
+/* Chatbot Window */
+#chatbot-window {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 300px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    font-family: Arial, sans-serif;
+}
+
+#chatbot-header {
+    background-color: #eb0303;
+    color: white;
+    padding: 10px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+#chatbot-messages {
+    max-height: 250px;
+    overflow-y: auto;
+    padding: 10px;
+    font-size: 14px;
+}
+
+#chatbot-input-container {
+    display: flex;
+    border-top: 1px solid #ccc;
+}
+
+#chatbot-input {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    outline: none;
+}
+
+#chatbot-input-container button {
+    background-color: #f70505;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+    .order-form {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 1001;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .order-form-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 400px;
+      width: 90%;
+      color: #333;
+    }
+
+    .order-form-content input,
+    .order-form-content textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .order-form-content button {
+      background-color: #d63031;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      width: 100%;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 300px;
+      border: 0;
+      margin-top: 40px;
+    }
+
+    @media (max-width: 768px) {
+      .logo { font-size: 1.6rem; }
+      .menu-title { font-size: 1.6rem; }
+      .nav-buttons {
+        justify-content: center;
+        margin-top: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      header {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .menu {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  
+  
+
+<header>
+  <div class="logo">Zing² ama<span style="color:#4b0c0c;">Z</span>ing</div>
+  <div class="nav-buttons">
+    <a href="tel:+917993153459">🕾 Call to Order</a>
+   <a href="https://wa.me/917993153459?text=Hi%2C%20I%20would%20like%20to%20place%20an%20order%20from%20Zing²%20amaZing%21" target="_blank">
+  💬 WhatsApp Order
+</a>
+
+    
+    <a href="cart.html" class="cart-button">🛒 Cart </a>
+    <a href="admin_login.html" class="admin_login-button">⚙️ Admin</a>
+
+</div>
+
+  </div>
+</header>
+
+<div class="menu-container">
+  <h2 class="menu-title">Our Signature Dishes</h2>
+  <div class="menu">
+
+    <!-- Item 1 -->
+<div class="menu-item">
+  <img src="https://sl.bing.net/eSylRw4SyC4" alt="Chicken Pakoda">
+  <h3>Chicken Pakoda</h3>
+  <p>250g – ₹120</p>
+  <button onclick="addToCart('Chicken Pakoda (250g)', 120)">Add to Cart</button>
+  <p>500g – ₹230</p>
+  <button onclick="addToCart('Chicken Pakoda (500g)', 230)">Add to Cart</button>
+</div>
+
+<!-- Item 2 -->
+<div class="menu-item">
+  <img src="https://sl.bing.net/f6EKF3Rw6rA" alt="Hariyali Chicken">
+  <h3>Hariyali Chicken Pakoda</h3>
+  <p>250g – ₹130</p>
+  <button onclick="addToCart('Hariyali Chicken Pakoda (250g)', 130)">Add to Cart</button>
+  <p>500g – ₹250</p>
+  <button onclick="addToCart('Hariyali Chicken Pakoda (500g)', 250)">Add to Cart</button>
+</div>
+
+  <!-- Item 3 -->
+<div class="menu-item">
+  <img src="https://sl.bing.net/fTAZ02u5AAu" alt="Pepper Chicken">
+  <h3>Pepper Chicken</h3>
+  <p>250g – ₹140</p>
+  <button onclick="addToCart('Pepper Chicken (250g)', 140)">Add to Cart</button>
+  <p>500g – ₹260</p>
+  <button onclick="addToCart('Pepper Chicken (500g)', 260)">Add to Cart</button>
+</div>
+
+    <!-- Item 4 -->
+    <div class="menu-item">
+      <img src="https://sl.bing.net/83Ed3IWHPo" alt="Chicken Nuggets">
+      <h3>Chicken Nuggets</h3>
+      <p>250g – ₹250</p>
+      <button onclick="addToCart('Chicken Nuggets', 250)">Add to Cart</button>
+      
+
+    </div>
+
+   <!-- Item 5 -->
+<div class="menu-item">
+  <img src="https://sl.bing.net/jz8Vn0ISAgK" alt="Kajju Chicken">
+  <h3>Kajju Chicken</h3>
+  <p>250g – ₹150</p>
+  <button onclick="addToCart('Kajju Chicken (250g)', 150)">Add to Cart</button>
+  <p>500g – ₹280</p>
+  <button onclick="addToCart('Kajju Chicken (500g)', 280)">Add to Cart</button>
+</div>
+
+    <!-- Combo -->
+    <div class="menu-item">
+      <img src="https://sl.bing.net/dGwwBaOX9QO" alt="Combo">
+      <h3>🔥 Combo Pack</h3>
+      <p>Combo – ₹650</p>
+      <button onclick="addToCart('🔥 Combo Pack', 650)">Add to Cart</button>
+     
+
+    </div>
+
+  </div>
+</div>
+
+
+
+<!-- Order Form -->
+<div class="order-form" id="orderForm">
+  <div class="order-form-content">
+    <h3>Place Your Order</h3>
+    <input type="text" placeholder="Your Name" required>
+    <input type="tel" placeholder="Phone Number" required>
+    <textarea rows="3" placeholder="Your Address"></textarea>
+    <button onclick="alert('Order Placed!')">Submit</button>
+    <button onclick="document.getElementById('orderForm').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<!-- Google Map -->
+<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d387144.00758306815!2d77.06889995942361!3d13.02850242524308!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bae1670d5e1a443%3A0x9c9b14f7aeaf8c26!2sZing%20Zing%20Amazing!5e0!3m2!1sen!2sin!4v1234567890" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+<script>
+  let cart = JSON.parse(localStorage.getItem('zingCart')) || [];
+
+  function updateCartCount() {
+    document.getElementById('cart-count').innerText = cart.length;
+  }
+
+  function addToCart(itemName, price) {
+    cart.push({ item: itemName, price: price, quantity: 1 });
+    localStorage.setItem('zingCart', JSON.stringify(cart));
+    updateCartCount();
+    alert(itemName + " added to cart!");
+  }
+
+  function orderNow(itemName, price) {
+    localStorage.setItem('zingCart', JSON.stringify([{ item: itemName, price: price, quantity: 1 }]));
+    window.location.href = "cart.html";
+  }
+
+  // On page load
+  updateCartCount();
+
+  function addToCart(itemName, price) {
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+    // Check if item already in cart
+    let existing = cart.find(item => item.name === itemName);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      cart.push({ name: itemName, price: price, qty: 1 });
+    }
+
+    localStorage.setItem('cart', JSON.stringify(cart));
+    alert(itemName + " added to cart!");
+  }
+
+  // Optional: Show cart count (if you have a cart icon)
+  window.onload = function () {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const cartBtn = document.getElementById('cartCount');
+    if (cartBtn) cartBtn.textContent = cart.length;
+  }
+  function orderNow(itemName, price) {
+  const orderItem = [{ name: itemName, price: price, qty: 1 }];
+  localStorage.setItem("directOrder", JSON.stringify(orderItem));
+  window.location.href = "order_details.html";
+}
+function toggleChatbot() {
+    let chatWindow = document.getElementById("chatbot-window");
+    chatWindow.style.display = (chatWindow.style.display === "block") ? "none" : "block";
+}
+
+function sendMessage() {
+    let input = document.getElementById("chatbot-input");
+    let message = input.value.trim();
+    if (message === "") return;
+
+    // Display user message
+    let messagesDiv = document.getElementById("chatbot-messages");
+    let userMsg = document.createElement("div");
+    userMsg.textContent = "🧑: " + message;
+    messagesDiv.appendChild(userMsg);
+
+    // Simple AI responses (you can later link this to your backend chatbot API)
+    let botReply = "🤖: I’m here to help! For detailed support, please contact our team.";
+    if (message.toLowerCase().includes("menu")) {
+        botReply = `🤖: Here are our delicious dishes:<br>
+        <button onclick="scrollToItem('Chicken Pakoda')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🍗 Chicken Pakoda</button>
+        <button onclick="scrollToItem('Hariyali Chicken')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🌿 Hariyali Chicken</button>
+        <button onclick="scrollToItem('Pepper Chicken')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🌶️ Pepper Chicken</button>
+        <button onclick="scrollToItem('Chicken Nuggets')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🍿 Chicken Nuggets</button>
+        <button onclick="scrollToItem('Kajju Chicken')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🥜 Kajju Chicken</button>
+        <button onclick="scrollToItem('Combo Pack')" style="margin:2px;padding:5px;background:#eb0303;color:white;border:none;border-radius:3px;cursor:pointer;">🔥 Combo Pack</button>`;
+    }
+    if (message.toLowerCase().includes("order")) {
+        botReply = `🤖: You can order through WhatsApp! 📱<br>
+        <strong>Contact: Vamsi</strong><br>
+        📞 Phone: +91 7993153459<br>
+        <button onclick="window.open('https://wa.me/917993153459?text=Hi%20Vamsi%2C%20I%20would%20like%20to%20place%20an%20order%20from%20Zing²%20amaZing!', '_blank')" style="margin:5px;padding:8px;background:#25D366;color:white;border:none;border-radius:5px;cursor:pointer;">💬 Order via WhatsApp</button>`;
+    }
+    if (message.toLowerCase().includes("contact")) {
+        botReply = `🤖: Contact Details:<br>
+        <strong>Owner: Vamsi</strong><br>
+        📞 Phone: +91 7993153459<br>
+        💬 WhatsApp: +91 7993153459<br>
+        <button onclick="window.open('https://wa.me/917993153459?text=Hi%20Vamsi%2C%20I%20have%20a%20question%20about%20Zing²%20amaZing!', '_blank')" style="margin:5px;padding:8px;background:#25D366;color:white;border:none;border-radius:5px;cursor:pointer;">💬 Chat on WhatsApp</button>`;
+    }
+    
+    
+    let botMsg = document.createElement("div");
+    botMsg.innerHTML = botReply;
+    messagesDiv.appendChild(botMsg);
+
+    input.value = "";
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function scrollToItem(itemName) {
+    const menuItems = document.querySelectorAll('.menu-item h3');
+    for (let item of menuItems) {
+        if (item.textContent.includes(itemName)) {
+            item.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            break;
+        }
+    }
+    toggleChatbot();
+}
+
+</script>
+
+<!-- Chatbot Button -->
+<div id="chatbot-button" onclick="toggleChatbot()">💬 Chat</div>
+
+<!-- Chatbot Window -->
+<div id="chatbot-window">
+    <div id="chatbot-header">
+        Zing² amaZing Assistant
+        <span id="close-chat" onclick="toggleChatbot()">✖</span>
+    </div>
+    <div id="chatbot-messages"></div>
+    <div id="chatbot-input-container">
+        <input type="text" id="chatbot-input" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+
+</body>
+</html>

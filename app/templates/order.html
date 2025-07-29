@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zing² amaZing – Quick Order</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@500&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #fff0f0;
+      color: #333;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      color: #d63031;
+      font-family: 'Pacifico', cursive;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: bold;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #25d366;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1da851;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 20px;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Quick Order – Zing² amaZing</h2>
+    <form id="orderForm">
+      <label for="name">Name</label>
+      <input type="text" id="name" required>
+
+      <label for="phone">Phone</label>
+      <input type="tel" id="phone" required>
+
+      <label for="address">Delivery Address</label>
+      <textarea id="address" rows="3" required></textarea>
+
+      <label for="item">Order Item</label>
+      <select id="item" required>
+        <option value="">-- Select an Item --</option>
+        <option>Chicken Pakoda – 500g – ₹230</option>
+        <option>Hariyali Chicken Pakoda – 500g – ₹250</option>
+        <option>Pepper Chicken – 500g – ₹260</option>
+        <option>Chicken Nuggets – 250g – ₹250</option>
+        <option>Kajju Chicken – 500g – ₹280</option>
+        <option>🔥 Combo Pack – ₹650</option>
+      </select>
+
+      <button type="submit">Order via WhatsApp</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const phone = document.getElementById('phone').value;
+      const address = document.getElementById('address').value;
+      const item = document.getElementById('item').value;
+
+      const message = `Hi! I'd like to place an order:%0A%0A🧑 Name: ${name}%0A📞 Phone: ${phone}%0A🏠 Address: ${address}%0A🍗 Order: ${item}`;
+      
+      const whatsappNumber = '917993153459';  // ← Replace with your number
+      const url = `https://wa.me/${whatsappNumber}?text=${message}`;
+
+      window.open(url, '_blank');
+    });
+  </script>
+
+</body>
+</html>
