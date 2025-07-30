@@ -9,17 +9,122 @@ import razorpay
 import sqlite3
 from datetime import datetime
 from starlette.middleware.sessions import SessionMiddleware
+from random import uniform
 from dotenv import load_dotenv
 import os
 load_dotenv()
+import math
+from geopy.distance import geodesic
 
 
 
 # Initialize clients
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
+
+
+@app.get("/test_static", response_class=HTMLResponse)
+async def test_static(request: Request):
+    return templates.TemplateResponse("test_static.html", {"request": request})
+
+
+# Global variables to store delivery partner's location
+partner_location = {"lat": 0.0, "lon": 0.0}
+
+@app.get("/driver", response_class=HTMLResponse)
+async def driver_page(request: Request):
+    return templates.TemplateResponse("driver.html", {"request": request})
+
+@app.post("/update_partner_location")
+async def update_partner_location(request: Request):
+    global partner_location
+    data = await request.json()
+    partner_location["lat"] = data.get("lat", 0.0)
+    partner_location["lon"] = data.get("lon", 0.0)
+    return {"status": "success"}
+
+@app.get("/get_locations")
+async def get_locations():
+    return {"partner": partner_location}
+
+# Fixed Owner Location (Puttur, Andhra Pradesh near Water Tank Street)
+OWNER_LAT = 13.4506
+OWNER_LON = 79.5534
+
+@app.post("/calculate_total")
+async def calculate_total(request: Request):
+    try:
+        data = await request.json()
+        customer_lat = float(data.get("customer_lat", 0))
+        customer_lon = float(data.get("customer_lon", 0))
+        order_amount = float(data.get("order_amount", 0))
+
+        # Default delivery charge
+        delivery_charge = 40
+
+        if customer_lat != 0 and customer_lon != 0:
+            distance_km = geodesic((OWNER_LAT, OWNER_LON), (customer_lat, customer_lon)).km
+
+            # Delivery calculation logic
+            if distance_km <= 1:
+                delivery_charge = 0
+            else:
+                delivery_charge = round((distance_km - 1) * 3, 2)
+
+        total_amount = order_amount + delivery_charge
+
+        return {
+            "delivery_charge": delivery_charge,
+            "total_amount": total_amount
+        }
+
+    except Exception as e:
+        return {"error": str(e), "delivery_charge": 40, "total_amount": order_amount + 40}
+
+
+# ✅ FRONTEND ROUTES (Added as per your request)
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/menu", response_class=HTMLResponse)
+async def menu(request: Request):
+    return templates.TemplateResponse("menu.html", {"request": request})
+
+@app.get("/cart", response_class=HTMLResponse)
+async def cart(request: Request):
+    return templates.TemplateResponse("cart.html", {"request": request})
+
+@app.get("/order_details", response_class=HTMLResponse)
+async def order_details(request: Request):
+    return templates.TemplateResponse("order_details.html", {"request": request})
+
+@app.get("/payment", response_class=HTMLResponse)
+async def payment(request: Request):
+    return templates.TemplateResponse("payment.html", {"request": request})
+
+@app.get("/order_success", response_class=HTMLResponse)
+async def order_success(request: Request):
+    return templates.TemplateResponse("order_success.html", {"request": request})
+
+@app.get("/track_delivery", response_class=HTMLResponse)
+async def track_delivery(request: Request):
+    return templates.TemplateResponse("track_delivery.html", {"request": request})
+
+@app.get("/failure", response_class=HTMLResponse)
+async def failure(request: Request):
+    return templates.TemplateResponse("failure.html", {"request": request})
+
+@app.get("/success", response_class=HTMLResponse)
+async def success(request: Request):
+    return templates.TemplateResponse("success.html", {"request": request})
+
+@app.get("/thankyou", response_class=HTMLResponse)
+async def thankyou(request: Request):
+    return templates.TemplateResponse("thankyou.html", {"request": request})
 
 # Replace these with your actual credentials
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -39,7 +144,13 @@ class PaymentRequest(BaseModel):
 
 @app.get("/paymentmethod", response_class=HTMLResponse)
 async def payment_method(request: Request):
-    grand_total = 500 * 100  # ₹500 in paise
+    # ✅ Fetch from session or calculate dynamically
+    cart_total = request.session.get("cart_total", 0)  # subtotal
+    delivery_charge = request.session.get("delivery_charge", 0)  # delivery charges
+
+    # Razorpay accepts amount in paise (multiply by 100)
+    grand_total = (cart_total + delivery_charge) * 100
+
     return templates.TemplateResponse("paymentmethod.html", {
         "request": request,
         "grand_total": grand_total,
@@ -144,47 +255,63 @@ We'll deliver your order soon!
         print("Signature verification failed:", e)
         return templates.TemplateResponse("failure.html", {"request": request})
 
-@app.get("/payment_success", response_class=HTMLResponse)
+@app.get("/success", response_class=HTMLResponse)
 async def payment_success(request: Request):
     return templates.TemplateResponse("success.html", {"request": request})
 
-@app.get("/payment_failed", response_class=HTMLResponse)
+@app.get("/failure", response_class=HTMLResponse)
 async def payment_failed(request: Request):
     return templates.TemplateResponse("failure.html", {"request": request})
 
 
 # ✅ Twilio WhatsApp Notification API
-flask_app = Flask(__name__)
+@app.post("/notify_whatsapp")
+async def notify_whatsapp(request: Request):
+    data = await request.json()
 
-@flask_app.route('/notify_whatsapp', methods=['POST'])
-def notify_whatsapp():
-    data = request.json
-    customer_name = data['customer_name']
-    phone = data['phone']
-    amount = data['amount']
-    method = data['method']
+    customer_name = data.get('customer_name', 'Customer')
+    phone = data.get('phone')
+    amount = data.get('amount', '0')
+    method = data.get('method', 'unknown')
+    items = data.get('items', 'Not provided')
+    address = data.get('address', 'Not provided')
+    live_location = data.get('live_location', 'Not provided')
+    total_price = data.get('total_price', '0')
+    payment_method = data.get('payment_method', 'Not specified')
 
-    message_body = f"Hi {customer_name}, your payment of ₹{amount} via {method.upper()} has been received. Thank you for shopping with Zing² amaZing!"
-    owner_message = f"New order alert! {customer_name} paid ₹{amount} via {method.upper()}."
+    message_body = (
+        f"Hi {customer_name}, your payment of ₹{amount} via {method.upper()} "
+        f"has been received. Thank you for Ordering with Zing² amaZing!"
+    )
+
+    owner_message = (
+        f"🛒 New order alert!\n\n"
+        f"👤 Name: {customer_name}\n"
+        f"📞 Phone: {phone}\n"
+        f"📦 Items: {items}\n"
+        f"🏠 Address: {address}\n"
+        f"📍 Location: {live_location}\n"
+        f"💰 Total Price: ₹{total_price}\n"
+        f"💳 Payment Method: {payment_method}"
+    )
 
     try:
-        twilio = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
-        twilio.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            body=message_body,
-            to=f'whatsapp:{phone}'
-        )
-
-        twilio.messages.create(
+        if phone:
+            twilio_client.messages.create(
+                from_=TWILIO_WHATSAPP_NUMBER,
+                body=message_body,
+                to=f'whatsapp:{phone}'
+            )
+        twilio_client.messages.create(
             from_=TWILIO_WHATSAPP_NUMBER,
             body=owner_message,
             to=OWNER_WHATSAPP_NUMBER
         )
 
-        return jsonify({"status": "sent"})
+        return {"status": "sent"}
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return {"error": str(e)}
+
 
 # Initialize DB at app startup
 def init_db():
@@ -295,6 +422,8 @@ async def admin_logout(request: Request):
     return RedirectResponse(url="/admin_login", status_code=302)
 
 
+
+
 # Forgot Password - GET
 @app.get("/forgot_password", response_class=HTMLResponse)
 async def forgot_password_get(request: Request):
@@ -309,3 +438,18 @@ async def forgot_password_post(request: Request, email: str = Form(...), new_pas
         return HTMLResponse("<h3>Password updated successfully! <a href='/admin_login'>Login Now</a></h3>")
     else:
         return HTMLResponse("<h3 style='color:red;'>Invalid email. Access denied.</h3>")
+    
+# Simulated delivery partner location
+delivery_lat = 20.5937
+delivery_lon = 78.9629
+
+@app.get("/get_locations")
+async def get_locations():
+    global delivery_lat, delivery_lon
+    # Simulate movement by randomly changing coordinates
+    delivery_lat += uniform(-0.0005, 0.0005)
+    delivery_lon += uniform(-0.0005, 0.0005)
+
+    return {
+        "partner": {"lat": delivery_lat, "lon": delivery_lon}
+    }

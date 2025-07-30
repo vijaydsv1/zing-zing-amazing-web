@@ -121,7 +121,7 @@
 
   <div class="summary">
     <div><span>Subtotal</span><span id="subtotal">₹0</span></div>
-    <div><span>Delivery</span><span id="delivery">₹40</span></div>
+    <div><span>Delivery</span><span id="delivery">₹0</span></div>
     <div><span>Total</span><span id="total">₹0</span></div>
   </div>
 
@@ -136,11 +136,9 @@
   const totalSpan = document.getElementById('total');
 
   let subtotal = 0;
-  let delivery = 40; // Fixed delivery cost
 
   if (cart.length === 0) {
     orderItemsDiv.innerHTML = "<div class='empty-cart'>Your cart is empty.</div>";
-    delivery = 0;
   } else {
     cart.forEach(item => {
       const itemTotal = item.price * item.qty;
@@ -156,23 +154,43 @@
     });
   }
 
-  const total = subtotal + delivery;
-
+  // Set subtotal first
   subtotalSpan.innerText = `₹${subtotal}`;
-  deliverySpan.innerText = `₹${delivery}`;
-  totalSpan.innerText = `₹${total}`;
+
+  // Calculate delivery charges dynamically
+  navigator.geolocation.getCurrentPosition(pos => {
+    fetch("/calculate_total", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer_lat: pos.coords.latitude,
+        customer_lon: pos.coords.longitude,
+        order_amount: subtotal
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      deliverySpan.innerText = `₹${data.delivery_charge}`;
+      totalSpan.innerText = `₹${data.total_amount}`;
+      localStorage.setItem('delivery', data.delivery_charge);
+      localStorage.setItem('total', data.total_amount);
+    })
+    .catch(err => console.error("Charge calculation error:", err));
+  });
 
   function Proceed() {
-    window.location.href = "paymentmethod.html"; // optional thank you page
+    window.location.href = "/paymentmethod"; 
   }
 
-
-  // Store cart in local storage
+  // Store cart data
   localStorage.setItem('cart', JSON.stringify(cart));
   localStorage.setItem('subtotal', subtotal);
-  localStorage.setItem('delivery', delivery);
-
 </script>
+
+</body>
+</html>
+
+
 
 </body>
 </html>

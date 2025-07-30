@@ -111,7 +111,8 @@
 
 <!-- Add inside your <script> tag after handler in Razorpay -->
 <script>
-  let amount = parseInt('{{ grand_total }}'); // Flask will replace this with actual amount
+  // ✅ Get actual cart amount from localStorage instead of fixed {{ grand_total }}
+  let amount = parseFloat(localStorage.getItem('total')) || 0;
   let selectedMethod = "";
 
   function selectOption(method, event) {
@@ -147,7 +148,7 @@
 
     if (selectedMethod === 'cod') {
       sendWhatsAppNotification();  // send COD notification
-      window.location.href = "order_success.html";
+      window.location.href = "/order_success";
       return;
     }
 
@@ -157,7 +158,8 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ amount: amount })
+        // ✅ Send the correct amount (converted to integer for paisa)
+        body: JSON.stringify({ amount: Math.round(amount) })
       })
       .then(res => res.json())
       .then(data => {
@@ -165,18 +167,18 @@
 
         let options = {
           key: data.key,
-          amount: data.amount,
+          amount: Math.round(amount * 100), // ✅ exact cart total in paisa
           currency: "INR",
           name: "Zing² amaZing",
           description: "Order Payment",
           order_id: data.order_id,
           handler: function (response) {
             sendWhatsAppNotification();  // send success notification
-            window.location.href = "success.html";
+            window.location.href = "/success";
           },
           modal: {
             ondismiss: function () {
-              window.location.href = "failure.html";
+              window.location.href = "/failure";
             }
           },
           prefill: {
@@ -223,6 +225,7 @@
       });
     }
   }
+
 </script>
 
 </body>

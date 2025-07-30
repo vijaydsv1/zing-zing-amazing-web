@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Partner Live Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      padding: 20px;
+      text-align: center;
+    }
+    h2 {
+      color: #d63031;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 18px;
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h2>📍 Delivery Partner Location Tracker</h2>
+  <p>Keep this page open to share your live location with the customer.</p>
+  <div id="status" class="status">Waiting for GPS...</div>
+
+  <script>
+    function sendLocation(lat, lon) {
+      fetch("/update_partner_location", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          lat: lat,
+          lon: lon
+        })
+      }).then(res => res.json())
+        .then(() => {
+          document.getElementById("status").textContent = "✅ Location sent successfully!";
+        })
+        .catch(() => {
+          document.getElementById("status").textContent = "⚠️ Failed to send location";
+          document.getElementById("status").className = "error";
+        });
+    }
+
+    // Continuously watch and send location every 5 seconds
+    if ("geolocation" in navigator) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          sendLocation(pos.coords.latitude, pos.coords.longitude);
+        },
+        (err) => {
+          document.getElementById("status").textContent = "⚠️ GPS error: " + err.message;
+          document.getElementById("status").className = "error";
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+      );
+    } else {
+      document.getElementById("status").textContent = "❌ Geolocation not supported on this device.";
+      document.getElementById("status").className = "error";
+    }
+  </script>
+</body>
+</html>
