@@ -42,6 +42,7 @@
       font-size: 1.8rem;
     }
 
+    /* Table (Desktop View) */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -116,6 +117,7 @@
       background-color: #ff3b3b;
     }
 
+    /* ✅ Mobile Responsive: Vertical Card Style */
     @media (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block;
@@ -123,10 +125,13 @@
       }
 
       tr {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
         margin-bottom: 15px;
         border: 1px solid #ddd;
         border-radius: 6px;
-        padding: 10px;
+        padding: 12px;
         background: #fff;
         box-shadow: 0 2px 6px rgba(0,0,0,0.05);
       }
@@ -136,31 +141,15 @@
       }
 
       td {
-        text-align: right;
-        position: relative;
-        padding-left: 50%;
-        border: none;
-        border-bottom: 1px solid #eee;
-        padding-top: 12px;
-        padding-bottom: 12px;
-      }
-
-      td::before {
-        position: absolute;
-        left: 15px;
-        top: 12px;
-        width: 45%;
-        white-space: nowrap;
-        font-weight: bold;
-        color: #d63031;
+        width: 100%;
         text-align: left;
+        padding: 8px 0;
+        border: none;
       }
 
-      td:nth-of-type(1)::before { content: "Item"; }
-      td:nth-of-type(2)::before { content: "Price"; }
-      td:nth-of-type(3)::before { content: "Qty"; }
-      td:nth-of-type(4)::before { content: "Total"; }
-      td:nth-of-type(5)::before { content: "Remove"; }
+      .quantity {
+        justify-content: flex-start;
+      }
 
       .total, .checkout-btn {
         float: none;
@@ -171,10 +160,6 @@
 
       .checkout-btn {
         padding: 12px 20px;
-      }
-
-      .quantity button {
-        padding: 6px 10px;
       }
     }
   </style>
@@ -222,15 +207,15 @@
       row.setAttribute('data-index', index);
 
       row.innerHTML = `
-        <td>${item.name}</td>
-        <td>₹${item.price}</td>
+        <td><strong>${item.name}</strong></td>
+        <td>Price: ₹${item.price}</td>
         <td class="quantity">
           <button onclick="changeQty(${index}, -1)">-</button>
           <span>${item.qty}</span>
           <button onclick="changeQty(${index}, 1)">+</button>
         </td>
-        <td class="item-total">₹${itemTotal}</td>
-        <td><button class="remove-btn" onclick="removeItem(${index})">🗑️</button></td>
+        <td>Total: ₹${itemTotal}</td>
+        <td><button class="remove-btn" onclick="removeItem(${index})">🗑️ Remove</button></td>
       `;
 
       tbody.appendChild(row);
@@ -253,14 +238,12 @@
   }
 
   function proceedToCheckout() {
-  if (cart.length === 0) {
-    alert("🛒 Your cart is empty. Please add items before proceeding.");
-    return;
+    if (cart.length === 0) {
+      alert("🛒 Your cart is empty. Please add items before proceeding.");
+      return;
+    }
+    window.location.href = "/order_details";
   }
-  window.location.href = "/order_details";
-}
-
-  
 
   window.onload = loadCart;
 </script>
