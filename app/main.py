@@ -126,6 +126,18 @@ async def success(request: Request):
 async def thankyou(request: Request):
     return templates.TemplateResponse("thankyou.html", {"request": request})
 
+@app.get("/terms-and-conditions", response_class=HTMLResponse)
+async def terms(request: Request):
+    return templates.TemplateResponse("terms-and-conditions.html", {"request": request})
+
+@app.get("/privacy-policy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy-policy.html", {"request": request})
+
+@app.get("/refund-and-cancellation", response_class=HTMLResponse)
+async def refund(request: Request):
+    return templates.TemplateResponse("refund-and-cancellation.html", {"request": request})
+
 # Replace these with your actual credentials
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
