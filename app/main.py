@@ -15,6 +15,10 @@ import os
 load_dotenv()
 import math
 from geopy.distance import geodesic
+from fastapi.templating import Jinja2Templates
+import os
+
+
 
 
 
@@ -23,6 +27,8 @@ app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 
 @app.get("/test_static", response_class=HTMLResponse)
