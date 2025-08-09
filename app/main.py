@@ -231,19 +231,19 @@ async def index(request: Request):
 
 # Provide both underline and dash url variants and robust filename lookup
 @app.get("/terms_and_conditions", response_class=HTMLResponse)
-@app.get("/terms-and-conditions", response_class=HTMLResponse)
+@app.get("/terms_and_conditions", response_class=HTMLResponse)
 async def terms_handler(request: Request):
-    return smart_template_response(request, "terms-and-conditions")
+    return smart_template_response(request, "terms_and_conditions")
 
 @app.get("/privacy_policy", response_class=HTMLResponse)
-@app.get("/privacy-policy", response_class=HTMLResponse)
+@app.get("/privacy_policy", response_class=HTMLResponse)
 async def privacy_handler(request: Request):
-    return smart_template_response(request, "privacy-policy")
+    return smart_template_response(request, "privacy_policy")
 
 @app.get("/refund_and_cancellation", response_class=HTMLResponse)
-@app.get("/refund-and-cancellation", response_class=HTMLResponse)
+@app.get("/refund_and_cancellation", response_class=HTMLResponse)
 async def refund_handler(request: Request):
-    return smart_template_response(request, "refund-and-cancellation")
+    return smart_template_response(request, "refund_and_cancellation")
 
 @app.get("/menu", response_class=HTMLResponse)
 async def menu(request: Request):
