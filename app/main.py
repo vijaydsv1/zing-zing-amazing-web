@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify  # <-- Only for /notify_whatsapp endpoint
+from flask import Flask, request, jsonify  # <-- Only for /notify_whatsapp endpoint (kept as you had it)
 from twilio.rest import Client as TwilioClient
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -18,23 +18,20 @@ from geopy.distance import geodesic
 from fastapi.templating import Jinja2Templates
 import os
 
-
-
-
-
-# Initialize clients
+# Initialize clients & app
 app = FastAPI()
+
+# If your templates / static are inside app/templates and app/static adjust as needed.
+# You originally set templates twice; the final assignment below uses BASE_DIR for correctness.
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-
 @app.get("/test_static", response_class=HTMLResponse)
 async def test_static(request: Request):
     return templates.TemplateResponse("test_static.html", {"request": request})
-
 
 # Global variables to store delivery partner's location
 partner_location = {"lat": 0.0, "lon": 0.0}
@@ -87,14 +84,30 @@ async def calculate_total(request: Request):
         }
 
     except Exception as e:
-        return {"error": str(e), "delivery_charge": 40, "total_amount": order_amount + 40}
+        # If order_amount wasn't defined due to failure, fallback to 0
+        try:
+            fallback_total = float(order_amount) + 40
+        except Exception:
+            fallback_total = 40
+        return {"error": str(e), "delivery_charge": 40, "total_amount": fallback_total}
 
 
 # ✅ FRONTEND ROUTES (Added as per your request)
-
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/terms_and_conditions", response_class=HTMLResponse)
+async def terms_and_conditions(request: Request):
+    return templates.TemplateResponse("terms_and_conditions.html", {"request": request})
+
+@app.get("/privacy_policy", response_class=HTMLResponse)
+async def privacy_policy(request: Request):
+    return templates.TemplateResponse("privacy_policy.html", {"request": request})
+
+@app.get("/refund_and_cancellation", response_class=HTMLResponse)
+async def refund_and_cancellation(request: Request):
+    return templates.TemplateResponse("refund_and_cancellation.html", {"request": request})
 
 @app.get("/menu", response_class=HTMLResponse)
 async def menu(request: Request):
@@ -132,17 +145,6 @@ async def success(request: Request):
 async def thankyou(request: Request):
     return templates.TemplateResponse("thankyou.html", {"request": request})
 
-@app.get("/terms-and-conditions", response_class=HTMLResponse)
-async def terms(request: Request):
-    return templates.TemplateResponse("terms-and-conditions.html", {"request": request})
-
-@app.get("/privacy-policy", response_class=HTMLResponse)
-async def privacy(request: Request):
-    return templates.TemplateResponse("privacy-policy.html", {"request": request})
-
-@app.get("/refund-and-cancellation", response_class=HTMLResponse)
-async def refund(request: Request):
-    return templates.TemplateResponse("refund-and-cancellation.html", {"request": request})
 
 # Replace these with your actual credentials
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -152,9 +154,22 @@ OWNER_WHATSAPP_NUMBER = os.getenv("OWNER_WHATSAPP_NUMBER")
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET") # Replace with real owner number
 
+# Initialize Razorpay & Twilio safely (avoid crash if env not set)
+razorpay_client = None
+try:
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+except Exception as e:
+    print("Razorpay init error:", e)
+    razorpay_client = None
 
-razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
-twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+twilio_client = None
+try:
+    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+except Exception as e:
+    print("Twilio init error:", e)
+    twilio_client = None
 
 # Pydantic model
 class PaymentRequest(BaseModel):
@@ -178,6 +193,8 @@ async def payment_method(request: Request):
 @app.post("/create_order")
 async def create_order(payment: PaymentRequest):
     try:
+        if not razorpay_client:
+            return JSONResponse(status_code=500, content={"message": "Razorpay not configured"})
         amount_in_paise = payment.amount * 100
         data = {
             "amount": amount_in_paise,
@@ -215,6 +232,9 @@ async def payment_status(
     }
 
     try:
+        if not razorpay_client:
+            raise Exception("Razorpay client not configured")
+
         razorpay_client.utility.verify_payment_signature(params_dict)
 
         items_ordered = items.split(",")
@@ -235,11 +255,18 @@ async def payment_status(
 We'll deliver your order soon!
 """
 
-        twilio_client.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            to=f"whatsapp:{phone}",
-            body=customer_msg
-        )
+        # Send to customer (if twilio configured)
+        try:
+            if twilio_client:
+                twilio_client.messages.create(
+                    from_=TWILIO_WHATSAPP_NUMBER,
+                    to=f"whatsapp:{phone}",
+                    body=customer_msg
+                )
+            else:
+                print("Twilio not configured - skipping customer message")
+        except Exception as e:
+            print("Twilio customer send error:", e)
 
         owner_msg = f"""
 🛒 New Order Received!
@@ -258,11 +285,18 @@ We'll deliver your order soon!
 ➡️ Please prepare and deliver the order.
 """
 
-        twilio_client.messages.create(
-            from_=TWILIO_WHATSAPP_NUMBER,
-            to=OWNER_WHATSAPP_NUMBER,
-            body=owner_msg
-        )
+        # Send to owner (if twilio configured)
+        try:
+            if twilio_client:
+                twilio_client.messages.create(
+                    from_=TWILIO_WHATSAPP_NUMBER,
+                    to=OWNER_WHATSAPP_NUMBER,
+                    body=owner_msg
+                )
+            else:
+                print("Twilio not configured - skipping owner message")
+        except Exception as e:
+            print("Twilio owner send error:", e)
 
         # Save order in DB
         store_order_in_db(name, items, total_price, payment_method, phone, address, live_location)
@@ -270,7 +304,7 @@ We'll deliver your order soon!
         return templates.TemplateResponse("success.html", {"request": request})
 
     except Exception as e:
-        print("Signature verification failed:", e)
+        print("Signature verification failed or other error:", e)
         return templates.TemplateResponse("failure.html", {"request": request})
 
 @app.get("/success", response_class=HTMLResponse)
@@ -282,10 +316,23 @@ async def payment_failed(request: Request):
     return templates.TemplateResponse("failure.html", {"request": request})
 
 
-# ✅ Twilio WhatsApp Notification API
+# ✅ Twilio WhatsApp Notification API (robust: accepts JSON or form)
 @app.post("/notify_whatsapp")
 async def notify_whatsapp(request: Request):
-    data = await request.json()
+    # Try JSON; if not present, try form data
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        # fallback to form
+        try:
+            form = await request.form()
+            data = dict(form)
+        except Exception:
+            data = {}
+
+    if not data:
+        return JSONResponse(status_code=400, content={"error": "Empty or invalid request body"})
 
     customer_name = data.get('customer_name', 'Customer')
     phone = data.get('phone')
@@ -313,6 +360,9 @@ async def notify_whatsapp(request: Request):
         f"💳 Payment Method: {payment_method}"
     )
 
+    if not twilio_client:
+        return JSONResponse(status_code=500, content={"error": "Twilio not configured on server"})
+
     try:
         if phone:
             twilio_client.messages.create(
@@ -328,7 +378,8 @@ async def notify_whatsapp(request: Request):
 
         return {"status": "sent"}
     except Exception as e:
-        return {"error": str(e)}
+        print("notify_whatsapp error:", e)
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 # Initialize DB at app startup
@@ -364,7 +415,6 @@ def init_db():
 init_db()
 
 
-
 # ✅ Store orders in SQLite DB
 def store_order_in_db(name, items, total_price, payment_method, phone, address, location):
     conn = sqlite3.connect("orders.db")
@@ -375,10 +425,9 @@ def store_order_in_db(name, items, total_price, payment_method, phone, address, 
     """, (name, items, total_price, payment_method, phone, address, location, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
-    notify_whatsapp()
-
-    # ✅ Send WhatsApp notification
-    notify_whatsapp()
+    # NOTE: removed notify_whatsapp() calls here because notify_whatsapp is an async endpoint
+    # and sending notifications is already handled in payment_status (or via a dedicated call)
+    # If you want to notify immediately here, call a synchronous helper or use BackgroundTasks
 
 
 ADMIN_CREDENTIALS = {
