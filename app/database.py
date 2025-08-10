@@ -1,167 +1,149 @@
-# database.py
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, ForeignKey, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
-from twilio.rest import Client
-import os
 
-# -------------------- Database Setup --------------------
-DATABASE_URL = "sqlite:///customers.db"  # SQLite DB file
+DATABASE_URL = "sqlite:///./orders.db"
 
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 Base = declarative_base()
 
-class Customer(Base):
-    __tablename__ = "customers"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    phone = Column(String, nullable=False)
-    email = Column(String, nullable=False)
-    service = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    orders = relationship("Order", back_populates="customer")
 
 class Order(Base):
     __tablename__ = "orders"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    items = Column(Text, nullable=False)
-    total_price = Column(String, nullable=False)
-    payment_method = Column(String, nullable=False)
-    order_date = Column(DateTime, default=datetime.utcnow)
-    is_new = Column(Boolean, default=True)
-
-    customer = relationship("Customer", back_populates="orders")
-
-class Notification(Base):
-    __tablename__ = "notifications"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    message = Column(Text, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    customer_name = Column(String)
+    customer_phone = Column(String)
+    customer_address = Column(Text)
+    payment_method = Column(String)
+    total_price = Column(String)
+    live_location = Column(Text)
+    items_ordered = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
-    is_read = Column(Boolean, default=False)
+import sqlite3
+from datetime import datetime
 
-# Create DB engine & tables
-engine = create_engine(DATABASE_URL, echo=False)
-Base.metadata.create_all(engine)
+DB_NAME = "app.db"
 
-# Session factory
-SessionLocal = sessionmaker(bind=engine)
+# Create database tables if they don't exist
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-# -------------------- Twilio WhatsApp Notification --------------------
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "your_account_sid")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "your_auth_token")
-TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")  # Twilio sandbox
-TWILIO_TEST_MODE = True  # Change to False in production
-
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
-def send_whatsapp_message(to_number, message):
-    """Send a WhatsApp message via Twilio."""
-    if TWILIO_TEST_MODE:
-        print(f"[TEST MODE] WhatsApp to {to_number}: {message}")
-        return True
-    try:
-        client.messages.create(
-            from_=TWILIO_WHATSAPP_FROM,
-            body=message,
-            to=f"whatsapp:{to_number}"
+    # Customers Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            address TEXT NOT NULL
         )
-        print(f"✅ WhatsApp sent to {to_number}")
-        return True
-    except Exception as e:
-        print(f"❌ WhatsApp send failed: {e}")
-        return False
+    ''')
 
-# -------------------- Database Functions --------------------
-def add_customer(name, phone, email, service):
-    """Add a customer to DB."""
-    session = SessionLocal()
-    try:
-        customer = Customer(name=name, phone=phone, email=email, service=service)
-        session.add(customer)
-        session.commit()
-        print(f"✅ Customer '{name}' added.")
-        return customer.id
-    except Exception as e:
-        session.rollback()
-        print(f"❌ Error adding customer: {e}")
-    finally:
-        session.close()
-
-def add_order(customer_id, items, total_price, payment_method):
-    """Add an order & admin notification."""
-    session = SessionLocal()
-    try:
-        order = Order(
-            customer_id=customer_id,
-            items=items,
-            total_price=total_price,
-            payment_method=payment_method
+    # Orders Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_id INTEGER NOT NULL,
+            order_items TEXT NOT NULL,
+            total_price REAL NOT NULL,
+            order_date TEXT NOT NULL,
+            FOREIGN KEY(customer_id) REFERENCES customers(id)
         )
-        session.add(order)
+    ''')
 
-        # Create admin notification
-        customer = session.query(Customer).filter(Customer.id == customer_id).first()
-        notif_msg = f"New order from {customer.name} ({customer.phone})"
-        notification = Notification(message=notif_msg)
-        session.add(notification)
-
-        session.commit()
-
-        # Send WhatsApp to customer
-        send_whatsapp_message(
-            customer.phone,
-            f"Hello {customer.name}, your order for '{items}' "
-            f"totaling ₹{total_price} has been received. Payment method: {payment_method}."
+    # Notifications Table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0
         )
+    ''')
 
-        print(f"✅ Order placed by {customer.name} and notification created.")
-    except Exception as e:
-        session.rollback()
-        print(f"❌ Error adding order: {e}")
-    finally:
-        session.close()
+    conn.commit()
+    conn.close()
 
+
+# Add a new customer
+def add_customer(name, email, phone, address):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO customers (name, email, phone, address)
+        VALUES (?, ?, ?, ?)
+    ''', (name, email, phone, address))
+    conn.commit()
+    customer_id = cursor.lastrowid
+    conn.close()
+    return customer_id
+
+
+# Add a new order & notification
+def add_order(customer_id, order_items, total_price):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Store order
+    cursor.execute('''
+        INSERT INTO orders (customer_id, order_items, total_price, order_date)
+        VALUES (?, ?, ?, ?)
+    ''', (customer_id, order_items, total_price, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    # Store notification
+    cursor.execute('''
+        INSERT INTO notifications (message, created_at)
+        VALUES (?, ?)
+    ''', (f"New order placed by Customer ID {customer_id}", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+
+    conn.commit()
+    conn.close()
+
+
+# Get all orders with customer details
 def get_all_orders():
-    """Fetch all orders with customer details."""
-    session = SessionLocal()
-    try:
-        orders = session.query(Order).join(Customer).all()
-        return orders
-    finally:
-        session.close()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT orders.id, customers.name, customers.email, customers.phone, customers.address,
+               orders.order_items, orders.total_price, orders.order_date
+        FROM orders
+        JOIN customers ON orders.customer_id = customers.id
+        ORDER BY orders.order_date DESC
+    ''')
+    orders = cursor.fetchall()
+    conn.close()
+    return orders
 
+
+# Get unread notifications
 def get_unread_notifications():
-    """Fetch all unread admin notifications."""
-    session = SessionLocal()
-    try:
-        return session.query(Notification).filter_by(is_read=False).order_by(Notification.created_at.desc()).all()
-    finally:
-        session.close()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, message, created_at FROM notifications WHERE is_read = 0 ORDER BY created_at DESC
+    ''')
+    notifications = cursor.fetchall()
+    conn.close()
+    return notifications
 
+
+# Mark a notification as read
 def mark_notification_read(notification_id):
-    """Mark a notification as read."""
-    session = SessionLocal()
-    try:
-        notif = session.query(Notification).get(notification_id)
-        if notif:
-            notif.is_read = True
-            session.commit()
-    finally:
-        session.close()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE notifications SET is_read = 1 WHERE id = ?
+    ''', (notification_id,))
+    conn.commit()
+    conn.close()
 
-# -------------------- Example Usage --------------------
-if __name__ == "__main__":
-    # Create a test customer
-    cust_id = add_customer("John Doe", "+919999999999", "john@example.com", "Plumbing Service")
 
-    # Create a test order
-    add_order(cust_id, "Pipe repair", "500", "Cash on Delivery")
+init_db()
 
-    # Show unread notifications
-    for notif in get_unread_notifications():
-        print(f"[NOTIF] {notif.message} at {notif.created_at}")
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
