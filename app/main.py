@@ -1,17 +1,21 @@
 from flask import Flask, request, jsonify  # <-- Only for /notify_whatsapp endpoint (kept as you had it)
 from twilio.rest import Client as TwilioClient
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Header
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import razorpay
 import sqlite3
+from fastapi import FastAPI, Request, HTTPException
+import hmac
+import hashlib
+import json
 from datetime import datetime
 from starlette.middleware.sessions import SessionMiddleware
 from random import uniform
 from dotenv import load_dotenv
-import os
+from fastapi import Request, WebSocket, WebSocketDisconnect
 load_dotenv()
 import math
 from geopy.distance import geodesic
@@ -450,6 +454,9 @@ async def post_admin_login(request: Request, email: str = Form(...), password: s
         "error": "Invalid credentials"
     })
 
+@app.get("/admin_dashboard", response_class=HTMLResponse)
+async def get_admin_dashboard(request: Request):
+    return templates.TemplateResponse("admin_dashboard.html", {"request": request, "orders": []})
 
 @app.get("/admin_dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
@@ -487,9 +494,81 @@ async def admin_dashboard(request: Request):
 @app.get("/admin_logout", response_class=HTMLResponse)
 async def admin_logout(request: Request):
     return RedirectResponse(url="/admin_login", status_code=302)
+# Razorpay webhook secret from your dashboard
+WEBHOOK_SECRET = "zingzingamazing-123"
+
+@app.post("/razorpay_webhook")
+async def razorpay_webhook(request: Request):
+    try:
+        payload = await request.body()
+        signature = request.headers.get("x-razorpay-signature")
+
+        if not signature:
+            raise HTTPException(status_code=400, detail="Signature missing")
+
+        # Verify webhook signature
+        expected_signature = hmac.new(
+            WEBHOOK_SECRET.encode(),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(expected_signature, signature):
+            raise HTTPException(status_code=400, detail="Invalid signature")
+
+        data = json.loads(payload)
+        event_type = data.get("event")
+
+        print(f"✅ Event received: {event_type}")
+        print(json.dumps(data, indent=2))
+
+        return {"status": "success"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+admin_clients = []
+
+@app.websocket("/ws/admin")
+async def admin_ws(websocket: WebSocket):
+    await websocket.accept()
+    admin_clients.append(websocket)
+    try:
+        while True:
+            await websocket.receive_text()  # Keep connection alive
+    except WebSocketDisconnect:
+        admin_clients.remove(websocket)
+
+async def broadcast_to_admins(message: dict):
+    disconnected = []
+    for client in admin_clients:
+        try:
+            await client.send_json(message)
+        except:
+            disconnected.append(client)
+    for client in disconnected:
+        admin_clients.remove(client)
 
 
+@app.post("/webhook")
+async def razorpay_webhook(request: Request, x_razorpay_signature: str = Header(None)):
+    # Read the payload from the request body
+    payload = await request.json()  # <-- This was missing
 
+    # Optional: Verify Razorpay signature here
+    # verify_signature(payload, x_razorpay_signature)
+
+    event = payload.get("event")
+    print(f"Received Event: {event}")
+
+    # Broadcast to admin dashboards
+    await broadcast_to_admins({
+        "type": "razorpay_event",
+        "event": event,
+        "payload": payload
+    })
+
+    return {"status": "ok"}
 
 # Forgot Password - GET
 @app.get("/forgot_password", response_class=HTMLResponse)
@@ -520,3 +599,4 @@ async def get_locations():
     return {
         "partner": {"lat": delivery_lat, "lon": delivery_lon}
     }
+

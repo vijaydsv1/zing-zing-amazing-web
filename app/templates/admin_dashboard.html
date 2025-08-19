@@ -2,73 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
+    <title>Admin Dashboard — Live</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        .filters {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            gap: 10px;
-        }
-
-        input[type="text"], select {
-            padding: 8px;
-            font-size: 16px;
-            width: 48%;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-        }
-
-        th, td {
-            padding: 12px;
-            border: 1px solid #ccc;
-            text-align: center;
-        }
-
-        tr:hover {
-            background-color: #f0f0f0;
-        }
-
-        .new-badge {
-            background-color: #e74c3c;
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        h1 { text-align:center; }
+        .filters { display:flex; justify-content:space-between; margin-bottom:15px; gap:10px; }
+        input[type="text"], select { padding:8px; font-size:16px; width:48%; }
+        table { width:100%; border-collapse:collapse; background:white; }
+        th, td { padding:12px; border:1px solid #ccc; text-align:center; }
+        tr:hover { background:#f0f0f0; }
+        .new-badge { background:#e74c3c; color:white; padding:4px 8px; border-radius:8px; font-size:12px; margin-left:8px; }
+        /* toast */
+        #toast {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            background: #1e88e5;
             color: white;
-            padding: 2px 6px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-left: 5px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+            display: none;
+            z-index: 9999;
         }
-
-        @media (max-width: 768px) {
-            .filters {
-                flex-direction: column;
-            }
-
-            input[type="text"], select {
-                width: 100%;
-            }
-
-            table, th, td {
-                font-size: 12px;
-            }
-        }
+        #toast .title { font-weight: bold; margin-bottom:6px; }
+        #notif-count { font-weight: bold; color: #e74c3c; margin-left: 8px; }
+        @media (max-width:768px){ .filters{flex-direction:column;} input[type="text"],select{width:100%;} table,th,td{font-size:12px;} }
+        footer { background:#ee0a0a; padding:15px 0; text-align:center; border-top:1px solid #ddd; margin-top:30px; color:#f3efef; }
     </style>
 </head>
 <body>
-    <h1>📦 Admin Dashboard</h1>
+    <h1>📦 Admin Dashboard <span id="liveBadge" class="new-badge" style="display:none">NEW</span></h1>
 
     <div class="filters">
         <input type="text" id="searchDate" placeholder="Search by Date (YYYY-MM-DD)">
@@ -93,58 +57,135 @@
                 <th>Status</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="orderBody">
             {% for order in orders %}
             <tr>
                 <td>{{ order.id }}</td>
-                <td>
-                  {% if new_orders_count > 0 %}
-<div class="notification">
-  You have {{ new_orders_count }} new order{{ 's' if new_orders_count > 1 else '' }}!
-</div>
-{% endif %}
-
-                </td>
-                <td>{{ order.email }}</td>
-                <td>{{ order.phone }}</td>
-                <td>{{ order.service }}</td>
-                <td>{{ order.payment_method }}</td>
-                <td>{{ order.date_time }}</td>
+                <td>{{ order.name or order[1] }}</td>
+                <td>{{ order.email or order[2] }}</td>
+                <td>{{ order.phone or order[3] }}</td>
+                <td>{{ order.service or order[4] }}</td>
+                <td>{{ order.payment_method or order[5] }}</td>
+                <td>{{ order.date_time or order[6] }}</td>
                 <td>{{ order.status or "Pending" }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
+    <div id="toast" role="status" aria-live="polite">
+        <div class="title" id="toastTitle">New Order</div>
+        <div id="toastBody">Details</div>
+    </div>
+
     <script>
+    (function(){
+        const wsPath = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/admin";
+        let ws;
+        let reconnectInterval = 2000;
+
+        const toast = document.getElementById("toast");
+        const toastTitle = document.getElementById("toastTitle");
+        const toastBody = document.getElementById("toastBody");
+        const liveBadge = document.getElementById("liveBadge");
+        const orderBody = document.getElementById("orderBody");
+
+        // lightweight beep (tiny base64 wav)
+        const beep = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
+
+        function showToast(title, body) {
+            toastTitle.textContent = title;
+            toastBody.textContent = body;
+            toast.style.display = "block";
+            try { beep.play().catch(()=>{}); } catch(e){}
+            setTimeout(()=>{ toast.style.display = "none"; }, 6000);
+        }
+
+        function addOrderRow(order) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${order.id || ""}</td>
+                <td>${order.name || ""}</td>
+                <td>${order.email || ""}</td>
+                <td>${order.phone || ""}</td>
+                <td>${order.service || ""}</td>
+                <td>${order.payment_method || ""}</td>
+                <td>${order.date_time || ""}</td>
+                <td>${order.status || "Pending"}</td>
+            `;
+            // prepend
+            if (orderBody.firstChild) orderBody.insertBefore(tr, orderBody.firstChild);
+            else orderBody.appendChild(tr);
+        }
+
+        function onMessageText(text) {
+            // Try parse JSON
+            try {
+                const data = JSON.parse(text);
+                if (data.type === "new_order" && data.order) {
+                    addOrderRow(data.order);
+                    showToast("New Order: " + (data.order.name || "Customer"), `${data.order.items ? data.order.items : ""} • ${data.order.total_price ? "₹"+data.order.total_price : ""}`);
+                    liveBadge.style.display = "inline-block";
+                } else {
+                    // generic event
+                    showToast("Event", text);
+                }
+            } catch (e) {
+                // not JSON — show raw text
+                showToast("Notification", text);
+                liveBadge.style.display = "inline-block";
+            }
+        }
+
+        function connect() {
+            ws = new WebSocket(wsPath);
+            ws.onopen = () => {
+                console.info("WebSocket connected");
+                reconnectInterval = 2000;
+            };
+            ws.onmessage = (evt) => {
+                onMessageText(evt.data);
+            };
+            ws.onclose = () => {
+                console.warn("WebSocket closed — reconnecting in", reconnectInterval);
+                setTimeout(connect, reconnectInterval);
+                reconnectInterval = Math.min(reconnectInterval * 1.5, 30000);
+            };
+            ws.onerror = (err) => {
+                console.error("WebSocket error", err);
+                ws.close();
+            };
+        }
+
+        // start
+        connect();
+
+        // filters (client-side)
         const dateInput = document.getElementById("searchDate");
         const paymentFilter = document.getElementById("paymentFilter");
-        const table = document.getElementById("orderTable");
-        const rows = table.querySelectorAll("tbody tr");
-
         function filterOrders() {
             const dateValue = dateInput.value.trim();
-            const paymentValue = paymentFilter.value;
-
+            const paymentValue = paymentFilter.value.toLowerCase();
+            const rows = document.querySelectorAll("#orderTable tbody tr");
             rows.forEach(row => {
-                const dateText = row.children[6].textContent;
-                const paymentText = row.children[5].textContent.toLowerCase();
-
+                const dateText = row.children[6].textContent || "";
+                const paymentText = (row.children[5].textContent || "").toLowerCase();
                 const matchDate = !dateValue || dateText.includes(dateValue);
-                const matchPayment = !paymentValue || paymentText.includes(paymentValue.toLowerCase());
-
+                const matchPayment = !paymentValue || paymentText.includes(paymentValue);
                 row.style.display = (matchDate && matchPayment) ? "" : "none";
             });
         }
-
         dateInput.addEventListener("input", filterOrders);
         paymentFilter.addEventListener("change", filterOrders);
-    // Optional: Auto-refresh dashboard every 20s to check for new orders
-    setInterval(() => {
-        window.location.reload();
-    }, 20000);
 
+        // allow manual clear of LIVE badge
+        liveBadge.addEventListener("click", ()=> liveBadge.style.display = "none");
+    })();
     </script>
+
+
+
+
     <!-- Footer -->
 
 
