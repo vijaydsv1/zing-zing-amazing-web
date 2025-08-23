@@ -495,7 +495,7 @@ async def admin_dashboard(request: Request):
 async def admin_logout(request: Request):
     return RedirectResponse(url="/admin_login", status_code=302)
 # Razorpay webhook secret from your dashboard
-WEBHOOK_SECRET = "zingzingamazing-123"
+WEBHOOK_SECRET = "ZingZingamaZing123"
 
 @app.post("/razorpay_webhook")
 async def razorpay_webhook(request: Request):
