@@ -42,6 +42,15 @@
             <option value="upi">UPI</option>
             <option value="card">Card</option>
         </select>
+        <select id="statusFilter">
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Preparing">Preparing</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+        </select>
     </div>
 
     <table id="orderTable">
@@ -59,7 +68,7 @@
         </thead>
         <tbody id="orderBody">
             {% for order in orders %}
-            <tr>
+            <tr data-order-id="{{ order.id }}">
                 <td>{{ order.id }}</td>
                 <td>{{ order.name or order[1] }}</td>
                 <td>{{ order.email or order[2] }}</td>
@@ -67,7 +76,16 @@
                 <td>{{ order.service or order[4] }}</td>
                 <td>{{ order.payment_method or order[5] }}</td>
                 <td>{{ order.date_time or order[6] }}</td>
-                <td>{{ order.status or "Pending" }}</td>
+                <td>
+                    <select class="status-dropdown" data-order-id="{{ order.id }}">
+                        <option value="Pending" {{ "selected" if (order.status or "Pending") == "Pending" else "" }}>Pending</option>
+                        <option value="Confirmed" {{ "selected" if (order.status or "Pending") == "Confirmed" else "" }}>Confirmed</option>
+                        <option value="Preparing" {{ "selected" if (order.status or "Pending") == "Preparing" else "" }}>Preparing</option>
+                        <option value="Out for Delivery" {{ "selected" if (order.status or "Pending") == "Out for Delivery" else "" }}>Out for Delivery</option>
+                        <option value="Delivered" {{ "selected" if (order.status or "Pending") == "Delivered" else "" }}>Delivered</option>
+                        <option value="Cancelled" {{ "selected" if (order.status or "Pending") == "Cancelled" else "" }}>Cancelled</option>
+                    </select>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -103,6 +121,7 @@
 
         function addOrderRow(order) {
             const tr = document.createElement("tr");
+            tr.setAttribute("data-order-id", order.id);
             tr.innerHTML = `
                 <td>${order.id || ""}</td>
                 <td>${order.name || ""}</td>
@@ -111,7 +130,16 @@
                 <td>${order.service || ""}</td>
                 <td>${order.payment_method || ""}</td>
                 <td>${order.date_time || ""}</td>
-                <td>${order.status || "Pending"}</td>
+                <td>
+                    <select class="status-dropdown" data-order-id="${order.id}">
+                        <option value="Pending" ${order.status === "Pending" ? "selected" : ""}>Pending</option>
+                        <option value="Confirmed" ${order.status === "Confirmed" ? "selected" : ""}>Confirmed</option>
+                        <option value="Preparing" ${order.status === "Preparing" ? "selected" : ""}>Preparing</option>
+                        <option value="Out for Delivery" ${order.status === "Out for Delivery" ? "selected" : ""}>Out for Delivery</option>
+                        <option value="Delivered" ${order.status === "Delivered" ? "selected" : ""}>Delivered</option>
+                        <option value="Cancelled" ${order.status === "Cancelled" ? "selected" : ""}>Cancelled</option>
+                    </select>
+                </td>
             `;
             // prepend
             if (orderBody.firstChild) orderBody.insertBefore(tr, orderBody.firstChild);
@@ -125,6 +153,21 @@
                 if (data.type === "new_order" && data.order) {
                     addOrderRow(data.order);
                     showToast("New Order: " + (data.order.name || "Customer"), `${data.order.items ? data.order.items : ""} • ${data.order.total_price ? "₹"+data.order.total_price : ""}`);
+                    liveBadge.style.display = "inline-block";
+                } else if (data.type === "status_update") {
+                    // Update status in existing row
+                    const orderId = data.order_id;
+                    const newStatus = data.status;
+                    const row = document.querySelector(`tr[data-order-id="${orderId}"]`);
+                    if (row) {
+                        const statusCell = row.children[7]; // Status is the 8th column (index 7)
+                        const statusDropdown = statusCell.querySelector(".status-dropdown");
+                        if (statusDropdown) {
+                            statusDropdown.value = newStatus;
+                        }
+                        statusCell.textContent = newStatus;
+                    }
+                    showToast("Status Updated", `Order #${orderId} status changed to ${newStatus}`);
                     liveBadge.style.display = "inline-block";
                 } else {
                     // generic event
@@ -163,20 +206,76 @@
         // filters (client-side)
         const dateInput = document.getElementById("searchDate");
         const paymentFilter = document.getElementById("paymentFilter");
+        const statusFilter = document.getElementById("statusFilter");
+
         function filterOrders() {
             const dateValue = dateInput.value.trim();
             const paymentValue = paymentFilter.value.toLowerCase();
+            const statusValue = statusFilter.value;
             const rows = document.querySelectorAll("#orderTable tbody tr");
             rows.forEach(row => {
                 const dateText = row.children[6].textContent || "";
                 const paymentText = (row.children[5].textContent || "").toLowerCase();
+                const statusText = (row.children[7].textContent || "").toLowerCase();
                 const matchDate = !dateValue || dateText.includes(dateValue);
                 const matchPayment = !paymentValue || paymentText.includes(paymentValue);
-                row.style.display = (matchDate && matchPayment) ? "" : "none";
+                const matchStatus = !statusValue || statusText.includes(statusValue.toLowerCase());
+                row.style.display = (matchDate && matchPayment && matchStatus) ? "" : "none";
             });
         }
         dateInput.addEventListener("input", filterOrders);
         paymentFilter.addEventListener("change", filterOrders);
+        statusFilter.addEventListener("change", filterOrders);
+
+        // Status update functionality
+        document.addEventListener("change", async function(e) {
+            if (e.target.classList.contains("status-dropdown")) {
+                const orderId = e.target.getAttribute("data-order-id");
+                const newStatus = e.target.value;
+
+                try {
+                    const response = await fetch("/update_order_status", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            order_id: orderId,
+                            status: newStatus
+                        })
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        showToast("Status Updated", `Order #${orderId} status changed to ${newStatus}`);
+                        liveBadge.style.display = "inline-block";
+
+                        // Broadcast status update to all admin clients
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: "status_update",
+                                order_id: orderId,
+                                status: newStatus
+                            }));
+                        }
+                    } else {
+                        throw new Error("Failed to update status");
+                    }
+                } catch (error) {
+                    console.error("Error updating status:", error);
+                    showToast("Error", "Failed to update order status");
+                    // Revert the dropdown to previous value
+                    e.target.value = e.target.getAttribute("data-previous-value") || "Pending";
+                }
+            }
+        });
+
+        // Store previous value when dropdown is focused
+        document.addEventListener("focus", function(e) {
+            if (e.target.classList.contains("status-dropdown")) {
+                e.target.setAttribute("data-previous-value", e.target.value);
+            }
+        });
 
         // allow manual clear of LIVE badge
         liveBadge.addEventListener("click", ()=> liveBadge.style.display = "none");
