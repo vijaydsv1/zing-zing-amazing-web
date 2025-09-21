@@ -218,9 +218,9 @@ async def create_order(payment: PaymentRequest):
 @app.post("/payment_status")
 async def payment_status(
     request: Request,
-    razorpay_payment_id: str = Form(...),
-    razorpay_order_id: str = Form(...),
-    razorpay_signature: str = Form(...),
+    razorpay_payment_id: str = Form(None),  # Made optional for Cash on Delivery
+    razorpay_order_id: str = Form(None),    # Made optional for Cash on Delivery
+    razorpay_signature: str = Form(None),   # Made optional for Cash on Delivery
     name: str = Form(...),
     phone: str = Form(...),
     address: str = Form(...),
@@ -229,17 +229,28 @@ async def payment_status(
     total_price: str = Form(...),
     items: str = Form(...)
 ):
-    params_dict = {
-        "razorpay_order_id": razorpay_order_id,
-        "razorpay_payment_id": razorpay_payment_id,
-        "razorpay_signature": razorpay_signature
-    }
+    # Check if this is a Razorpay payment or Cash on Delivery
+    is_razorpay_payment = razorpay_payment_id and razorpay_order_id and razorpay_signature
 
+    if is_razorpay_payment:
+        # Verify Razorpay signature for online payments
+        params_dict = {
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "razorpay_signature": razorpay_signature
+        }
+
+        try:
+            if not razorpay_client:
+                raise Exception("Razorpay client not configured")
+
+            razorpay_client.utility.verify_payment_signature(params_dict)
+        except Exception as e:
+            print("Signature verification failed:", e)
+            return templates.TemplateResponse("failure.html", {"request": request})
+
+    # Process order for both Razorpay and Cash on Delivery
     try:
-        if not razorpay_client:
-            raise Exception("Razorpay client not configured")
-
-        razorpay_client.utility.verify_payment_signature(params_dict)
 
         items_ordered = items.split(",")
         items_text = "\n".join([f"- {item.strip()}" for item in items_ordered])
@@ -391,27 +402,34 @@ def init_db():
     conn = sqlite3.connect("orders.db")
     cursor = conn.cursor()
 
-    # ✅ Create table if it doesn't exist
+    # ✅ Create table if it doesn't exist with consistent column names
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
-            items TEXT,
-            total_price REAL,
-            payment_method TEXT,
+            email TEXT,
             phone TEXT,
-            address TEXT,
-            location TEXT,
-            date_time TEXT
+            service TEXT,
+            payment_method TEXT,
+            date_time TEXT,
+            status TEXT DEFAULT 'Pending',
+            is_new INTEGER DEFAULT 1
         )
     """)
-    
-    # ✅ Add column is_new only if it doesn't exist
+
+    # ✅ Check and add missing columns if table already exists
     cursor.execute("PRAGMA table_info(orders)")
     columns = [col[1] for col in cursor.fetchall()]
+
+    if "email" not in columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN email TEXT")
+    if "service" not in columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN service TEXT")
+    if "status" not in columns:
+        cursor.execute("ALTER TABLE orders ADD COLUMN status TEXT DEFAULT 'Pending'")
     if "is_new" not in columns:
         cursor.execute("ALTER TABLE orders ADD COLUMN is_new INTEGER DEFAULT 1")
-    
+
     conn.commit()
     conn.close()
 
@@ -419,19 +437,47 @@ def init_db():
 init_db()
 
 
-# ✅ Store orders in SQLite DB
+# ✅ Store orders in SQLite DB with proper column mapping
 def store_order_in_db(name, items, total_price, payment_method, phone, address, location):
     conn = sqlite3.connect("orders.db")
     cursor = conn.cursor()
+
+    # Map items to service field for admin dashboard compatibility
+    service = items if items else "Order Items"
+
     cursor.execute("""
-        INSERT INTO orders (name, items, total_price, payment_method, phone, address, location, date_time, is_new)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-    """, (name, items, total_price, payment_method, phone, address, location, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        INSERT INTO orders (name, email, phone, service, payment_method, date_time, status, is_new)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    """, (name, "", phone, service, payment_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pending"))
+
+    order_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    # NOTE: removed notify_whatsapp() calls here because notify_whatsapp is an async endpoint
-    # and sending notifications is already handled in payment_status (or via a dedicated call)
-    # If you want to notify immediately here, call a synchronous helper or use BackgroundTasks
+
+    # Broadcast new order to admin dashboard
+    try:
+        import asyncio
+        asyncio.create_task(broadcast_new_order({
+            "id": order_id,
+            "name": name,
+            "email": "",
+            "phone": phone,
+            "service": service,
+            "payment_method": payment_method,
+            "date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "status": "Pending"
+        }))
+    except Exception as e:
+        print(f"Error broadcasting new order: {e}")
+
+    return order_id
+
+async def broadcast_new_order(order_data):
+    """Broadcast new order to all connected admin clients"""
+    await broadcast_to_admins({
+        "type": "new_order",
+        "order": order_data
+    })
 
 
 ADMIN_CREDENTIALS = {
@@ -453,10 +499,6 @@ async def post_admin_login(request: Request, email: str = Form(...), password: s
         "request": request,
         "error": "Invalid credentials"
     })
-
-@app.get("/admin_dashboard", response_class=HTMLResponse)
-async def get_admin_dashboard(request: Request):
-    return templates.TemplateResponse("admin_dashboard.html", {"request": request, "orders": []})
 
 @app.get("/admin_dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):

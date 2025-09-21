@@ -147,8 +147,37 @@
     }
 
     if (selectedMethod === 'cod') {
-      sendWhatsAppNotification();  // send COD notification
-      window.location.href = "/order_success";
+      // Get order details from localStorage
+      const orderData = {
+        name: localStorage.getItem('customer_name') || 'Zing User',
+        phone: localStorage.getItem('customer_phone') || '9999999999',
+        address: localStorage.getItem('customer_address') || 'Not provided',
+        live_location: localStorage.getItem('customer_location') || 'Not provided',
+        payment_method: 'Cash on Delivery',
+        total_price: amount.toString(),
+        items: localStorage.getItem('cart_items') || 'Order Items'
+      };
+
+      // Send order data to backend for processing
+      fetch('/payment_status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(orderData)
+      })
+      .then(response => {
+        if (response.ok) {
+          sendWhatsAppNotification();  // send COD notification
+          window.location.href = "/order_success";
+        } else {
+          alert("Failed to process order. Please try again.");
+        }
+      })
+      .catch(error => {
+        console.error("COD order processing failed", error);
+        alert("Something went wrong. Please try again later.");
+      });
       return;
     }
 
