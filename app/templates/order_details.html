@@ -148,13 +148,18 @@
   </div>
 
   <div class="input-group">
+    <label for="email">Email</label>
+    <input type="email" id="email" placeholder="Enter your email" required />
+  </div>
+
+  <div class="input-group">
     <label for="mobile">Mobile Number</label>
     <input type="tel" id="mobile" placeholder="Enter your phone number" required />
   </div>
 
   <div class="input-group">
     <label for="address">Delivery Address</label>
-    <textarea id="address" placeholder="Full address with street, area, and pincode"></textarea>
+    <textarea id="address" placeholder="Full address with street, area, and pincode" required></textarea>
   </div>
 
   <!-- Proceed Button -->
@@ -191,16 +196,18 @@
 
   function proceedToPayment() {
   const name = document.getElementById("fullname").value.trim();
+  const email = document.getElementById("email").value.trim();
   const mobile = document.getElementById("mobile").value.trim();
   const address = document.getElementById("address").value.trim();
 
-  if (!name || !mobile || !address) {
+  if (!name || !email || !mobile || !address) {
     alert("Please fill in all required fields.");
     return;
   }
 
   const customerInfo = {
     name: name,
+    email: email,
     mobile: mobile,
     address: address
   };

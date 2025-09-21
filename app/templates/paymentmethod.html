@@ -146,6 +146,13 @@
       return;
     }
 
+    // Build items string with quantities from localStorage "cart"
+    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    let itemsString = "Order Items";
+    if (cart.length > 0) {
+      itemsString = cart.map(item => `${item.name} x ${item.qty}`).join(", ");
+    }
+
     if (selectedMethod === 'cod') {
       // Get customer info from localStorage (from order_details page)
       const customerInfo = JSON.parse(localStorage.getItem('customerInfo') || '{}');
@@ -153,12 +160,13 @@
       // Get order details from localStorage
       const orderData = {
         name: customerInfo.name || 'Zing User',
+        email: customerInfo.email || '',
         phone: customerInfo.mobile || '9999999999',
         address: customerInfo.address || 'Not provided',
         live_location: localStorage.getItem('customer_location') || 'Not provided',
         payment_method: 'Cash on Delivery',
         total_price: amount.toString(),
-        items: localStorage.getItem('cart_items') || 'Order Items'
+        items: itemsString
       };
 
       // Send order data to backend for processing

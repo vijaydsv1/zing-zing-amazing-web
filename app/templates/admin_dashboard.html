@@ -67,7 +67,14 @@
                 <td>{{ order.service or order[4] }}</td>
                 <td>{{ order.payment_method or order[5] }}</td>
                 <td>{{ order.date_time or order[6] }}</td>
-                <td>{{ order.status or "Pending" }}</td>
+                <td>
+                    <select class="status-dropdown" data-order-id="{{ order.id }}">
+                        <option value="Pending" {% if order.status == "Pending" %}selected{% endif %}>Pending</option>
+                        <option value="Processing" {% if order.status == "Processing" %}selected{% endif %}>Processing</option>
+                        <option value="Completed" {% if order.status == "Completed" %}selected{% endif %}>Completed</option>
+                        <option value="Cancelled" {% if order.status == "Cancelled" %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -180,6 +187,33 @@
 
         // allow manual clear of LIVE badge
         liveBadge.addEventListener("click", ()=> liveBadge.style.display = "none");
+
+        // Handle status dropdown change
+        document.addEventListener("DOMContentLoaded", () => {
+            const statusDropdowns = document.querySelectorAll(".status-dropdown");
+            statusDropdowns.forEach(dropdown => {
+                dropdown.addEventListener("change", async (event) => {
+                    const orderId = event.target.getAttribute("data-order-id");
+                    const newStatus = event.target.value;
+
+                    try {
+                        const response = await fetch("/update_order_status", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({ order_id: orderId, status: newStatus })
+                        });
+
+                        if (!response.ok) {
+                            alert("Failed to update order status");
+                        }
+                    } catch (error) {
+                        alert("Error updating order status");
+                    }
+                });
+            });
+        });
     })();
     </script>
 

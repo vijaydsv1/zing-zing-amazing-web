@@ -23,7 +23,20 @@ from fastapi.templating import Jinja2Templates
 import os
 
 # Initialize clients & app
-app = FastAPI()
+import asyncio
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        yield
+    except asyncio.CancelledError:
+        # Graceful shutdown cancellation
+        pass
+    except Exception as e:
+        print(f"Lifespan error: {e}")
+
+app = FastAPI(lifespan=lifespan)
 
 # If your templates / static are inside app/templates and app/static adjust as needed.
 # You originally set templates twice; the final assignment below uses BASE_DIR for correctness.
@@ -215,20 +228,46 @@ async def create_order(payment: PaymentRequest):
         print("Order creation error:", e)
         return JSONResponse(status_code=500, content={"message": "Internal Server Error"})
 
+from fastapi import HTTPException
+
 @app.post("/payment_status")
 async def payment_status(
     request: Request,
     razorpay_payment_id: str = Form(None),  # Made optional for Cash on Delivery
     razorpay_order_id: str = Form(None),    # Made optional for Cash on Delivery
     razorpay_signature: str = Form(None),   # Made optional for Cash on Delivery
-    name: str = Form(...),
-    phone: str = Form(...),
-    address: str = Form(...),
-    live_location: str = Form(...),
-    payment_method: str = Form(...),
-    total_price: str = Form(...),
-    items: str = Form(...)
+    name: str = Form(None),
+    email: str = Form(None),
+    phone: str = Form(None),
+    address: str = Form(None),
+    live_location: str = Form(None),
+    payment_method: str = Form(None),
+    total_price: str = Form(None),
+    items: str = Form(None)
 ):
+    # Log received form data for debugging
+    form_data = await request.form()
+    print("Received form data:", dict(form_data))
+
+    # Validate required fields
+    required_fields = {
+        "name": name,
+        "phone": phone,
+        "address": address,
+        "live_location": live_location,
+        "payment_method": payment_method,
+        "total_price": total_price,
+        "items": items
+    }
+    # Email is required only if payment method is not Cash on Delivery
+    if payment_method != "Cash on Delivery":
+        required_fields["email"] = email
+
+    missing_fields = [field for field, value in required_fields.items() if not value]
+    if missing_fields:
+        print(f"Missing required fields: {', '.join(missing_fields)}")
+        raise HTTPException(status_code=400, detail=f"Missing required fields: {', '.join(missing_fields)}")
+
     # Check if this is a Razorpay payment or Cash on Delivery
     is_razorpay_payment = razorpay_payment_id and razorpay_order_id and razorpay_signature
 
@@ -314,7 +353,7 @@ We'll deliver your order soon!
             print("Twilio owner send error:", e)
 
         # Save order in DB
-        store_order_in_db(name, items, total_price, payment_method, phone, address, live_location)
+        store_order_in_db(name, items, total_price, payment_method, phone, address, live_location, email)
 
         return templates.TemplateResponse("success.html", {"request": request})
 
@@ -438,7 +477,7 @@ init_db()
 
 
 # ✅ Store orders in SQLite DB with proper column mapping
-def store_order_in_db(name, items, total_price, payment_method, phone, address, location):
+def store_order_in_db(name, items, total_price, payment_method, phone, address, location, email=""):
     conn = sqlite3.connect("orders.db")
     cursor = conn.cursor()
 
@@ -448,7 +487,7 @@ def store_order_in_db(name, items, total_price, payment_method, phone, address, 
     cursor.execute("""
         INSERT INTO orders (name, email, phone, service, payment_method, date_time, status, is_new)
         VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    """, (name, "", phone, service, payment_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pending"))
+    """, (name, email, phone, service, payment_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pending"))
 
     order_id = cursor.lastrowid
     conn.commit()
@@ -457,16 +496,24 @@ def store_order_in_db(name, items, total_price, payment_method, phone, address, 
     # Broadcast new order to admin dashboard
     try:
         import asyncio
-        asyncio.create_task(broadcast_new_order({
-            "id": order_id,
-            "name": name,
-            "email": "",
-            "phone": phone,
-            "service": service,
-            "payment_method": payment_method,
-            "date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "status": "Pending"
-        }))
+        async def safe_broadcast():
+            try:
+                await broadcast_new_order({
+                    "id": order_id,
+                    "name": name,
+                    "email": email,
+                    "phone": phone,
+                    "service": service,
+                    "payment_method": payment_method,
+                    "date_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "status": "Pending"
+                })
+            except asyncio.CancelledError:
+                # Graceful cancellation on shutdown
+                pass
+            except Exception as e:
+                print(f"Error broadcasting new order: {e}")
+        asyncio.create_task(safe_broadcast())
     except Exception as e:
         print(f"Error broadcasting new order: {e}")
 
@@ -590,6 +637,33 @@ async def broadcast_to_admins(message: dict):
             disconnected.append(client)
     for client in disconnected:
         admin_clients.remove(client)
+
+@app.post("/update_order_status")
+async def update_order_status(request: Request):
+    data = await request.json()
+    order_id = data.get("order_id")
+    new_status = data.get("status")
+
+    if not order_id or not new_status:
+        return JSONResponse(status_code=400, content={"error": "Missing order_id or status"})
+
+    try:
+        conn = sqlite3.connect("orders.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
+        conn.commit()
+        conn.close()
+
+        # Broadcast status update to admin clients
+        await broadcast_to_admins({
+            "type": "order_status_update",
+            "order_id": order_id,
+            "status": new_status
+        })
+
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.post("/webhook")
