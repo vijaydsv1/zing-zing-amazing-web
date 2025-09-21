@@ -148,6 +148,11 @@
   </div>
 
   <div class="input-group">
+    <label for="email">Email Address</label>
+    <input type="email" id="email" placeholder="Enter your email address" required />
+  </div>
+
+  <div class="input-group">
     <label for="mobile">Mobile Number</label>
     <input type="tel" id="mobile" placeholder="Enter your phone number" required />
   </div>
@@ -191,16 +196,25 @@
 
   function proceedToPayment() {
   const name = document.getElementById("fullname").value.trim();
+  const email = document.getElementById("email").value.trim();
   const mobile = document.getElementById("mobile").value.trim();
   const address = document.getElementById("address").value.trim();
 
-  if (!name || !mobile || !address) {
+  if (!name || !email || !mobile || !address) {
     alert("Please fill in all required fields.");
+    return;
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert("Please enter a valid email address.");
     return;
   }
 
   const customerInfo = {
     name: name,
+    email: email,
     mobile: mobile,
     address: address
   };

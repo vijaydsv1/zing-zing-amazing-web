@@ -438,7 +438,7 @@ init_db()
 
 
 # ✅ Store orders in SQLite DB with proper column mapping
-def store_order_in_db(name, items, total_price, payment_method, phone, address, location):
+def store_order_in_db(name, email, items, total_price, payment_method, phone, address, location):
     conn = sqlite3.connect("orders.db")
     cursor = conn.cursor()
 
@@ -448,7 +448,7 @@ def store_order_in_db(name, items, total_price, payment_method, phone, address, 
     cursor.execute("""
         INSERT INTO orders (name, email, phone, service, payment_method, date_time, status, is_new)
         VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-    """, (name, "", phone, service, payment_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pending"))
+    """, (name, email, phone, service, payment_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Pending"))
 
     order_id = cursor.lastrowid
     conn.commit()
@@ -460,7 +460,7 @@ def store_order_in_db(name, items, total_price, payment_method, phone, address, 
         asyncio.create_task(broadcast_new_order({
             "id": order_id,
             "name": name,
-            "email": "",
+            "email": email,
             "phone": phone,
             "service": service,
             "payment_method": payment_method,
@@ -641,4 +641,46 @@ async def get_locations():
     return {
         "partner": {"lat": delivery_lat, "lon": delivery_lon}
     }
+
+# ✅ Update order status endpoint
+@app.post("/update_order_status")
+async def update_order_status(request: Request):
+    try:
+        data = await request.json()
+        order_id = data.get("order_id")
+        new_status = data.get("status")
+
+        if not order_id or not new_status:
+            raise HTTPException(status_code=400, detail="Order ID and status are required")
+
+        conn = sqlite3.connect("orders.db")
+        cursor = conn.cursor()
+
+        # Update the order status
+        cursor.execute("""
+            UPDATE orders
+            SET status = ?
+            WHERE id = ?
+        """, (new_status, order_id))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        conn.commit()
+        conn.close()
+
+        # Broadcast status update to all admin clients
+        await broadcast_to_admins({
+            "type": "status_update",
+            "order_id": order_id,
+            "status": new_status
+        })
+
+        return {"status": "success", "message": f"Order #{order_id} status updated to {new_status}"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update order status: {str(e)}")
 
