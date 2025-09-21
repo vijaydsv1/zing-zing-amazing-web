@@ -147,11 +147,14 @@
     }
 
     if (selectedMethod === 'cod') {
+      // Get customer info from localStorage (from order_details page)
+      const customerInfo = JSON.parse(localStorage.getItem('customerInfo') || '{}');
+
       // Get order details from localStorage
       const orderData = {
-        name: localStorage.getItem('customer_name') || 'Zing User',
-        phone: localStorage.getItem('customer_phone') || '9999999999',
-        address: localStorage.getItem('customer_address') || 'Not provided',
+        name: customerInfo.name || 'Zing User',
+        phone: customerInfo.mobile || '9999999999',
+        address: customerInfo.address || 'Not provided',
         live_location: localStorage.getItem('customer_location') || 'Not provided',
         payment_method: 'Cash on Delivery',
         total_price: amount.toString(),
